@@ -401,8 +401,68 @@ Item {
                             Layout.preferredWidth: parent.width/3
                             text: "-"
                         }
+                        
+                     
                     }
+                  
                 }
+                ColumnLayout  {
+                    Layout.fillWidth: true
+                    Layout.fillHeight:true
+                    Layout.preferredHeight: 200
+        
+                    Button {
+                        text: "Car Horn"
+                        Layout.fillWidth: true
+                        Layout.fillHeight:true
+                        
+                        
+                        onClicked: {
+                                var buffer = new ArrayBuffer(3)
+                                var dv = new DataView(buffer)
+                                var ind = 0
+                                var bit=0
+                                dv.setUint8(ind, 102); ind += 1
+                                dv.setUint8(ind, 4); ind += 1
+                                dv.setUint8(ind,1<<0 ); ind += 1
+                                mCommands.sendCustomAppData(buffer)
+                            
+                                }
+                    }
+                    Button {
+                        text: "Excuse me"
+                        Layout.fillWidth: true
+                        Layout.fillHeight:true
+                        
+                        
+                        onClicked: {
+                                var buffer = new ArrayBuffer(3)
+                                var dv = new DataView(buffer)
+                                var ind = 0
+                                dv.setUint8(ind, 102); ind += 1
+                                dv.setUint8(ind,4 ); ind += 1
+                                dv.setUint8(ind,1<<1 ); ind += 1
+                                mCommands.sendCustomAppData(buffer)
+                        }
+                    }
+                    Button {
+                        text: "Police"
+                        Layout.fillWidth: true
+                        Layout.fillHeight:true
+                        
+                        
+                        onClicked: {
+                                var buffer = new ArrayBuffer(3)
+                                var dv = new DataView(buffer)
+                                var ind = 0
+                                dv.setUint8(ind, 102); ind += 1
+                                dv.setUint8(ind, 4  ); ind += 1
+                                dv.setUint8(ind,1<<2 ); ind += 1
+                                mCommands.sendCustomAppData(buffer)
+                        }
+                     }   
+                }
+
             }
 
             ColumnLayout { // Controls Page
@@ -486,9 +546,13 @@ Item {
                     to: 1
                     Layout.fillWidth: true
                 }
+
+                
             }
                 
         }
+
+        
     }
 
 }
