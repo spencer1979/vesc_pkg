@@ -22,6 +22,33 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+//FOR SPESC HW
+typedef enum
+{
+	FLOAT_LIGHT_OFF = 0,
+	FLOAT_LIGHT_FLASH,
+	FLOAT_LIGHT_FULL_ON
+} FLOAT_LIGHT_MODE;
+
+typedef enum
+{
+	MOTOR_CURRENT = 0,
+	ERPM,
+	PID,
+} FLOAT_ENGINE_SAMPLING;
+
+
+typedef enum
+{
+	IDLE_WARNING_TIME_DISABLE = 0,
+	IDLE_WARNING_TIME_1M,
+	IDLE_WARNING_TIME_5M,
+	IDLE_WARNING_TIME_10M,
+	IDLE_WARNING_TIME_30M,
+	IDLE_WARNING_TIME_60M,
+	IDLE_WARNING_TIME_120M
+
+} FLOAT_IDLE_TIME;
 
 typedef enum {
 	INPUTTILT_NONE = 0,
@@ -119,6 +146,18 @@ typedef struct {
 	int turntilt_yaw_aggregate;
 	float dark_pitch_offset;
 	bool is_buzzer_enabled;
+	//for spesc
+	FLOAT_LIGHT_MODE lights_mode;
+	bool ext_dcdc_enabled;
+	FLOAT_IDLE_TIME idle_warning_time;
+	uint8_t reverse_stop_speed;
+	uint8_t reverse_tolerance_scale;
+	bool engine_sound_enable;
+	FLOAT_ENGINE_SAMPLING engine_sampling_source;
+	uint16_t engine_sound_volume;
+	uint8_t over_speed_warning;
+	bool startup_safety_warning;
+	uint8_t low_battery_warning_level;
 } float_config;
 
 // DATATYPES_H_
