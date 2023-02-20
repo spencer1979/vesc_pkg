@@ -17,7 +17,7 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
+#include "st_types.h"
 #include "vesc_c_if.h"
 
 #include "conf/datatypes.h"
@@ -31,6 +31,10 @@
 
 // Acceleration average
 #define ACCEL_ARRAY_SIZE 40
+// SPESC HW only
+#define USE_SPESC_HW
+// SPESC HW only for test
+
 
 HEADER
 
@@ -41,6 +45,45 @@ HEADER
 #define RAD2DEG_f(rad) 		((rad) * (float)(180.0 / M_PI))
 
 #define UNUSED(x) (void)(x)
+
+
+// only for SPESC hardware 
+#ifdef USE_SPESC_HW
+
+#define ESP32_COMMAND_ID 102
+#define CHECK_BIT(var, pos) ((var) & (1 << (pos)))
+
+typedef enum
+{	ESP_COMMAND_GET_READY=0,
+	ESP_COMMAND_GET_ADV_INFO ,  // get ADVANCED setting only for SPESC
+	ESP_COMMAND_ENGINE_SOUND_INFO, // engine sound info , erpm ,duty
+	// esp32 get the sound trigger
+	ESP_COMMAND_SOUND_GET,
+	// app set sound trigger
+	ESP_COMMAND_SOUND_SET,
+	// enable item data
+	ESP_COMMAND_ENABLE_ITEM_INFO,
+
+} esp_commands;
+
+typedef enum
+{
+	SOUND_HORN_TRIGGERED=0 ,
+	SOUND_EXCUSE_ME_TRIGGERED,
+	SOUND_POLICE_TRIGGERED,
+} sound_triggered_mask;
+
+
+//Determine the function of a certain bit
+typedef enum
+{
+EXT_DCDC_ENABLE_MASK_BIT=0,
+ENGINE_SOUND_ENABLE_MASK_BIT,
+START_UP_WARNING_ENABLE_MASK_BIT,
+} float_enable_mask;
+
+#endif
+
 
 // Data type
 typedef enum {
@@ -213,6 +256,13 @@ typedef struct {
 	int debug_render_1, debug_render_2;
 	int debug_sample_field, debug_sample_count, debug_sample_index;
 	int debug_experiment_1, debug_experiment_2, debug_experiment_3, debug_experiment_4, debug_experiment_5, debug_experiment_6;
+
+	//  SPESC hardware only
+#ifdef USE_SPESC_HW
+	bool brk_light_state, light_state, is_head_light_off,is_brake_light_off, brk_detect;
+	float light_blink_time, brk_light_blink_time, light_blink_timer , idle_warning_time_out;
+	uint8_t sound_triggered;
+#endif
 } data;
 
 static void brake(data *d);
@@ -280,6 +330,258 @@ void beep_on(data *d, bool force)
 	if (force || (d->beep_num_left == 0))
 		EXT_BUZZER_ON();
 }
+
+// SPESC hardware only
+#ifdef USE_SPESC_HW
+
+//#define HW_V2_KEIFER
+#define SEC_TO_MILLS 1000
+#define LIGHT_BLINK_TIME_MIN 300	 // blink 0.3 seconds
+#define LIGHT_BLINK_TIME_MAX 1500	 // blink 1.5 seconds
+#define BRK_LIGHT_BLINK_TIME_MIN 150 // 150 ms rear light blink when brake  .
+#ifdef HW_V2_KEIFER
+#define REAR_LIGHT_GPIO GPIOB
+#define REAR_LIGHT_PIN 7
+#define FWD_LIGHT_GPIO GPIOB
+#define FWD_LIGHT_PIN 5
+#else
+#define FWD_LIGHT_GPIO GPIOC
+#define FWD_LIGHT_PIN 5
+#define REAR_LIGHT_GPIO GPIOB
+#define REAR_LIGHT_PIN 5
+#endif
+#define FWD_LIGHT_ON() VESC_IF->set_pad(FWD_LIGHT_GPIO, FWD_LIGHT_PIN)
+#define FWD_LIGHT_OFF() VESC_IF->clear_pad(FWD_LIGHT_GPIO, FWD_LIGHT_PIN)
+#define REAR_LIGHT_ON() VESC_IF->set_pad(REAR_LIGHT_GPIO, REAR_LIGHT_PIN)
+#define REAR_LIGHT_OFF() VESC_IF->clear_pad(REAR_LIGHT_GPIO, REAR_LIGHT_PIN)
+// #define FAN_GPIO		GPIOC
+// #define FAN_PIN			12
+#define EXT_DCDC_GPIO GPIOD
+#define EXT_DCDC_PIN 2
+#define EXT_DCDC_ON() VESC_IF->set_pad(EXT_DCDC_GPIO, EXT_DCDC_PIN)
+#define EXT_DCDC_OFF() VESC_IF->clear_pad(EXT_DCDC_GPIO, EXT_DCDC_PIN)
+// get_idle_warning_timer( d->float_conf.idle_warning)
+
+float utils_map(float x, float in_min, float in_max, float out_min, float out_max)
+{
+	return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
+float get_idle_warning_timer(FLOAT_IDLE_TIME mode)
+{
+
+	switch (mode)
+	{
+
+	case IDLE_WARNING_TIME_DISABLE:
+
+	{
+		return 0;
+	}
+
+	case IDLE_WARNING_TIME_1M:
+
+	{
+		return 60 * 1;
+	}
+
+	case IDLE_WARNING_TIME_5M:
+	{
+		return 60 * 5;
+	}
+
+	break;
+	case IDLE_WARNING_TIME_10M:
+	{
+		return 60 * 10;
+	}
+	case IDLE_WARNING_TIME_30M:
+	{
+		return 30 * 30;
+	};
+	case IDLE_WARNING_TIME_60M:
+	{
+		return 60 * 60;
+	}
+	case IDLE_WARNING_TIME_120M:
+	{
+		return 120 * 120;
+	}
+	default:
+	{
+		return 0;
+	}
+	}
+}
+
+void light_init()
+{
+
+	VESC_IF->set_pad_mode(FWD_LIGHT_GPIO, FWD_LIGHT_PIN, PAL_STM32_MODE_OUTPUT | PAL_STM32_OSPEED_HIGHEST | PAL_STM32_OTYPE_PUSHPULL);
+	VESC_IF->set_pad_mode(REAR_LIGHT_GPIO, REAR_LIGHT_PIN, PAL_STM32_MODE_OUTPUT | PAL_STM32_OSPEED_HIGHEST | PAL_STM32_OTYPE_PUSHPULL);
+	VESC_IF->set_pad_mode(EXT_DCDC_GPIO, EXT_DCDC_PIN, PAL_STM32_MODE_OUTPUT | PAL_STM32_OSPEED_HIGHEST | PAL_STM32_OTYPE_PUSHPULL);
+}
+
+
+void turn_head_light_on(data *d)
+{
+	if (d->is_head_light_off)
+	{
+		FWD_LIGHT_ON();
+		d->is_head_light_off = false;
+	}
+}
+void turn_head_light_off(data *d)
+{ 	
+	if (!d->is_head_light_off)
+	{
+		FWD_LIGHT_OFF();
+	d->is_head_light_off=true;
+	}
+	
+}
+
+void turn_brake_light_on(data *d)
+{
+	if (d->is_brake_light_off)
+	{
+	REAR_LIGHT_ON();
+	d->is_brake_light_off = false;
+	}
+}
+void turn_brake_light_off(data *d)
+{
+	if (!d->is_brake_light_off)
+	{
+	REAR_LIGHT_OFF();
+	d->is_brake_light_off = true;
+	}
+}
+
+void flash_the_lights(data *d)
+{
+	if ((d->current_time - d->light_blink_time) * SEC_TO_MILLS > d->light_blink_timer)
+	{
+		d->light_blink_timer = utils_map(d->abs_erpm, 0, LIGHT_BLINK_TIME_MAX, LIGHT_BLINK_TIME_MAX, LIGHT_BLINK_TIME_MIN);
+		if (d->light_blink_timer < LIGHT_BLINK_TIME_MIN)
+			d->light_blink_timer = LIGHT_BLINK_TIME_MIN;
+		d->light_state = !d->light_state;
+		d->light_blink_time = d->current_time;
+		
+	}
+	if (d->light_state)
+	{
+		turn_head_light_on(d);
+		turn_brake_light_off(d);
+	}
+	else
+	{
+	
+		turn_head_light_off(d);
+		turn_brake_light_on(d);
+	}
+}
+
+
+
+static void check_lights(data *d)
+
+{
+
+	if (d->light_blink_time == 0)
+		d->light_blink_time = d->current_time;
+	if (d->brk_light_blink_time == 0)
+		d->brk_light_blink_time = d->current_time;
+
+	if (d->abs_erpm > 20 && d->state == RUNNING) // motor spin
+	{
+		// reset power alert time ,because motor is running .
+
+		if (d->pid_value > -6)
+		{
+			switch(d->float_conf.lights_mode)
+			{
+
+			case FLOAT_LIGHT_FLASH:
+				flash_the_lights(d);
+				break;
+
+			case FLOAT_LIGHT_OFF:
+				turn_head_light_off(d);
+				turn_brake_light_off(d);
+
+				break;
+
+			case FLOAT_LIGHT_FULL_ON:
+				turn_head_light_on(d);
+				turn_brake_light_on(d);
+
+				break;
+			}
+		}
+		else // brake detected
+		{
+
+			// if erpm >0 is forward Brake , erpm < 0 if reverse brake
+			if ((d->current_time - d->brk_light_blink_time) * SEC_TO_MILLS >= BRK_LIGHT_BLINK_TIME_MIN)
+			{
+				d->brk_light_state = !d->brk_light_state;
+				d->brk_light_blink_time = d->current_time;
+			}
+
+			d->brk_light_state ? (turn_brake_light_on(d)) : (turn_brake_light_off(d));
+		}
+
+	}
+	//In the idle time, except for setting the light mode to be fully on, other settings are all off.
+	if (d->state > RUNNING  || d->state == STARTUP )
+ 
+	{
+		if (d->float_conf.lights_mode == FLOAT_LIGHT_FULL_ON)
+		{
+			turn_head_light_on(d);
+			turn_brake_light_on(d);
+		}
+		else
+		{
+			turn_head_light_off(d);
+			turn_brake_light_off(d);
+		}
+	}
+}
+
+void reset_lights(data *d)
+{
+	// reset time var
+	d->light_blink_time = 0;
+	d->brk_light_blink_time = 0;
+	d->idle_warning_time_out=get_idle_warning_timer(d->float_conf.idle_warning_time);
+	// light blink timer
+	d->light_blink_timer = LIGHT_BLINK_TIME_MAX;
+	d->is_brake_light_off=true;
+	d->is_head_light_off=true;
+	// init the light mode
+	if ((d->float_conf.lights_mode) == FLOAT_LIGHT_FULL_ON)
+	{
+	turn_brake_light_on(d);
+	turn_head_light_on(d);
+	}
+	else
+	{
+	turn_brake_light_off(d);
+	turn_head_light_off(d);
+	}
+	// init dcdc converter
+	(d->float_conf.ext_dcdc_enabled) ? EXT_DCDC_ON() : EXT_DCDC_OFF();
+}
+// reset soune triggered
+void reset_sound_triggered(data *d)
+
+{
+	d->sound_triggered = 0;
+}
+
+#endif
 
 // Utility Functions
 static float biquad_process(Biquad *biquad, float in) {
@@ -405,8 +707,8 @@ static void configure(data *d) {
 	///////////////////////////// WIP */
 	
 	// Feature: Reverse Stop
-	d->reverse_tolerance = 50000;
-	d->reverse_stop_step_size = 100.0 / d->float_conf.hertz;
+	d->reverse_tolerance = 50000 *  (float) d->float_conf.reverse_tolerance_scale;
+	d->reverse_stop_step_size = (float)d->float_conf.reverse_stop_speed / d->float_conf.hertz;
 
 	// Init Filters
 	float loop_time_filter = 3.0; // Originally Parameter, now hard-coded to 3Hz
@@ -467,6 +769,13 @@ static void configure(data *d) {
 		d->state = STARTUP;
 		beep_alert(d, 1, false);
 	}
+
+#ifdef USE_SPESC_HW
+	reset_sound_triggered(d);
+	reset_lights(d);
+#endif
+
+
 }
 
 static void reset_vars(data *d) {
@@ -522,6 +831,9 @@ static void reset_vars(data *d) {
 	// RC Move:
 	d->rc_steps = 0;
 	d->rc_current = 0;
+#ifdef USE_SPESC_HW
+	reset_lights(d);
+#endif
 }
 
 
@@ -731,17 +1043,17 @@ static bool check_faults(data *d){
 				d->state = FAULT_SWITCH_FULL;
 				return true;
 			}
-			if (fabsf(d->true_pitch_angle) > 15) {
+			if (fabsf(d->true_pitch_angle) > 16) {
 				d->state = FAULT_REVERSE;
 				return true;
 			}
 			// Above 10 degrees for a half a second? Switch it off
-			if ((fabsf(d->true_pitch_angle) > 10) && (d->current_time - d->reverse_timer > .5)) {
+			if ((fabsf(d->true_pitch_angle) > 12) && (d->current_time - d->reverse_timer > 1)) {
 				d->state = FAULT_REVERSE;
 				return true;
 			}
 			// Above 5 degrees for a full second? Switch it off
-			if ((fabsf(d->true_pitch_angle) > 5) && (d->current_time - d->reverse_timer > 1)) {
+			if ((fabsf(d->true_pitch_angle) >6) && (d->current_time - d->reverse_timer > 1.5)) {
 				d->state = FAULT_REVERSE;
 				return true;
 			}
@@ -749,7 +1061,7 @@ static bool check_faults(data *d){
 				d->state = FAULT_REVERSE;
 				return true;
 			}
-			if (fabsf(d->true_pitch_angle) < 5) {
+			if (fabsf(d->true_pitch_angle) < 6) {
 				d->reverse_timer = d->current_time;
 			}
 		}
@@ -814,10 +1126,10 @@ static void calculate_setpoint_target(data *d) {
 		d->reverse_total_erpm += d->erpm;
 		if (fabsf(d->reverse_total_erpm) > d->reverse_tolerance) {
 			// tilt down by 10 degrees after 50k aggregate erpm
-			d->setpoint_target = 10 * (fabsf(d->reverse_total_erpm) - d->reverse_tolerance) / 50000;
+			d->setpoint_target = 12 * (fabsf(d->reverse_total_erpm) - d->reverse_tolerance) /d->reverse_tolerance;
 		}
 		else {
-			if (fabsf(d->reverse_total_erpm) <= d->reverse_tolerance / 2) {
+			if (fabsf(d->reverse_total_erpm) <= (d->reverse_tolerance *0.8) ) {
 				if (d->erpm >= 0){
 					d->setpointAdjustmentType = TILTBACK_NONE;
 					d->reverse_total_erpm = 0;
@@ -1860,24 +2172,71 @@ static void float_thd(void *arg) {
 				}
 				d->enable_upside_down = false;
 				d->is_upside_down = false;
-			}	
-			if (d->current_time - d->disengage_timer > 1800) {	// alert user after 30 minutes
-				if (d->current_time - d->nag_timer > 60) {		// beep every 60 seconds
+			}
+#ifdef USE_SPESC_HW
+			// read setting
+			// d->idle_warning_time_out = get_idle_warning_timer(d->float_conf.idle_warning_time);
+			if ((d->current_time - d->disengage_timer) > d->idle_warning_time_out && d->idle_warning_time_out > 0)
+			{
+
+				if ((d->current_time - d->nag_timer) > 30)
+				{ // beep every 30 seconds
 					d->nag_timer = d->current_time;
-					float input_voltage = VESC_IF->mc_get_input_voltage_filtered();
-					if (input_voltage > d->idle_voltage) {
-						// don't beep if the voltage keeps increasing (board is charging)
-						d->idle_voltage = input_voltage;
+					if (d->idle_warning_time_out > 0)
+					{
+
+						float input_voltage = VESC_IF->mc_get_input_voltage_filtered();
+
+						if (input_voltage > d->idle_voltage)
+						{
+							// don't beep if the voltage keeps increasing (board is charging)
+							d->idle_voltage = input_voltage;
+						}
+						else
+						{
+							beep_alert(d, 2, 1); // 2 long beeps
+						}
 					}
-					else {
-						beep_alert(d, 2, 1);						// 2 long beeps
+
+					if ((d->float_conf.lights_mode == FLOAT_LIGHT_FULL_ON))
+					{
+						if (!d->is_brake_light_off)
+							turn_brake_light_off(d);
+						if (!d->is_head_light_off)
+							turn_head_light_off(d);
 					}
 				}
 			}
-			else {
+			else
+			{
 				d->nag_timer = d->current_time;
 				d->idle_voltage = 0;
 			}
+#else
+			if (d->current_time - d->disengage_timer > 1800)
+			{ // alert user after 30 minutes
+				if (d->current_time - d->nag_timer > 60)
+				{ // beep every 60 seconds
+					d->nag_timer = d->current_time;
+					float input_voltage = VESC_IF->mc_get_input_voltage_filtered();
+					if (input_voltage > d->idle_voltage)
+					{
+						// don't beep if the voltage keeps increasing (board is charging)
+						d->idle_voltage = input_voltage;
+					}
+					else
+					{
+						beep_alert(d, 2, 1); // 2 long beeps
+					}						 // 2 long beeps
+				}
+			}
+			else
+			{
+				d->nag_timer = d->current_time;
+				d->idle_voltage = 0;
+			}
+
+#endif
 
 			if ((d->current_time - d->fault_angle_pitch_timer) > 1) {
 				// 1 second after disengaging - set startup tolerance back to normal (aka tighter)
@@ -1920,6 +2279,9 @@ static void float_thd(void *arg) {
 		default:;
 		}
 
+#ifdef USE_SPESC_HW
+		check_lights(d);
+#endif
 		// Debug outputs
 //		app_balance_sample_debug();
 //		app_balance_experiment();
@@ -2320,7 +2682,7 @@ static void cmd_runtime_tune_other(data *d, unsigned char *cfg)
 	float tiltvarrate = cfg[9];
 	float tiltvarmax = cfg[10];
 
-	if (fabsf(tiltconst <= 20)) {
+	if (fabsf(tiltconst) <= 20.00) {
 		d->float_conf.tiltback_constant = tiltconst / 2;
 		d->float_conf.tiltback_constant_erpm = tilterpm;
 		d->noseangling_step_size = tiltspeed / 10 / d->float_conf.hertz;
@@ -2376,105 +2738,277 @@ void cmd_rc_move(data *d, unsigned char *cfg)//int amps, int time)
 }
 
 // Handler for incoming app commands
-static void on_command_received(unsigned char *buffer, unsigned int len) {
-	data *d = (data*)ARG;
+static void on_command_received(unsigned char *buffer, unsigned int len)
+{
+	data *d = (data *)ARG;
 	uint8_t magicnr = buffer[0];
 	uint8_t command = buffer[1];
 
-	if(len < 2){
-		if (!VESC_IF->app_is_output_disabled()) {
+	if (len < 2)
+	{
+		if (!VESC_IF->app_is_output_disabled())
+		{
 			VESC_IF->printf("Float App: Missing Args\n");
 			return;
 		}
 	}
-	if (magicnr != 101) {
-		if (!VESC_IF->app_is_output_disabled()) {
-			VESC_IF->printf("Float App: Wrong magic number %d\n", magicnr);
-		}
-		return;
-	}
 
-	switch(command) {
-		case FLOAT_COMMAND_GET_INFO: {
+	if (magicnr == 101)
+	{
+		switch (command)
+		{
+		case FLOAT_COMMAND_GET_INFO:
+		{
 			int32_t ind = 0;
 			uint8_t send_buffer[10];
-			send_buffer[ind++] = 101;	// magic nr.
-			send_buffer[ind++] = 0x0;	// command ID
-			send_buffer[ind++] = (uint8_t) (10 * APPCONF_FLOAT_VERSION);
+			send_buffer[ind++] = 101; // magic nr.
+			send_buffer[ind++] = 0x0; // command ID
+			send_buffer[ind++] = (uint8_t)(10 * APPCONF_FLOAT_VERSION);
 			VESC_IF->send_app_data(send_buffer, ind);
 			return;
 		}
-		case FLOAT_COMMAND_GET_RTDATA: {
+		case FLOAT_COMMAND_GET_RTDATA:
+		{
 			send_realtime_data(d);
 			return;
 		}
-		case FLOAT_COMMAND_RT_TUNE: {
-			if (len == 14) {
+		case FLOAT_COMMAND_RT_TUNE:
+		{
+			if (len == 14)
+			{
 				cmd_runtime_tune(d, &buffer[2]);
 			}
-			else {
-				if (!VESC_IF->app_is_output_disabled()) {
+			else
+			{
+				if (!VESC_IF->app_is_output_disabled())
+				{
 					VESC_IF->printf("Float App: Command too short (%d)\n", len);
 				}
 			}
 			return;
 		}
-		case FLOAT_COMMAND_TUNE_OTHER: {
-			if (len >= 14) {
+		case FLOAT_COMMAND_TUNE_OTHER:
+		{
+			if (len >= 14)
+			{
 				cmd_runtime_tune_other(d, &buffer[2]);
 			}
-			else {
-				if (!VESC_IF->app_is_output_disabled()) {
+			else
+			{
+				if (!VESC_IF->app_is_output_disabled())
+				{
 					VESC_IF->printf("Float App: Command length incorrect (%d)\n", len);
 				}
 			}
 			return;
 		}
-		case FLOAT_COMMAND_RC_MOVE: {
-			if (len == 6) {
+		case FLOAT_COMMAND_RC_MOVE:
+		{
+			if (len == 6)
+			{
 				cmd_rc_move(d, &buffer[2]);
 			}
-			else {
-				if (!VESC_IF->app_is_output_disabled()) {
+			else
+			{
+				if (!VESC_IF->app_is_output_disabled())
+				{
 					VESC_IF->printf("Float App: Command length incorrect (%d)\n", len);
 				}
 			}
 			return;
 		}
-		case FLOAT_COMMAND_CFG_RESTORE: {
+		case FLOAT_COMMAND_CFG_RESTORE:
+		{
 			read_cfg_from_eeprom(d);
 			VESC_IF->set_cfg_float(CFG_PARAM_IMU_mahony_kp + 100, d->float_conf.mahony_kp);
 			return;
 		}
-		case FLOAT_COMMAND_TUNE_DEFAULTS: {
+		case FLOAT_COMMAND_TUNE_DEFAULTS:
+		{
 			cmd_tune_defaults(d);
 			VESC_IF->set_cfg_float(CFG_PARAM_IMU_mahony_kp + 100, d->float_conf.mahony_kp);
 			return;
 		}
-		case FLOAT_COMMAND_CFG_SAVE: {
+		case FLOAT_COMMAND_CFG_SAVE:
+		{
 			write_cfg_to_eeprom(d);
 			return;
 		}
-		case FLOAT_COMMAND_PRINT_INFO: {
+		case FLOAT_COMMAND_PRINT_INFO:
+		{
 			cmd_print_info(d);
 			return;
 		}
-		case FLOAT_COMMAND_BOOSTER: {
-			if (len == 6) {
+		case FLOAT_COMMAND_BOOSTER:
+		{
+			if (len == 6)
+			{
 				cmd_booster(d, &buffer[2]);
 			}
-			else {
-				if (!VESC_IF->app_is_output_disabled()) {
+			else
+			{
+				if (!VESC_IF->app_is_output_disabled())
+				{
 					VESC_IF->printf("Float App: Command length incorrect (%d)\n", len);
 				}
 			}
 			return;
 		}
-		default: {
-			if (!VESC_IF->app_is_output_disabled()) {
+		default:
+		{
+			if (!VESC_IF->app_is_output_disabled())
+			{
 				VESC_IF->printf("Float App: Unknown command received %d vs %d\n", command, FLOAT_COMMAND_PRINT_INFO);
 			}
 		}
+		}
+	}
+#ifdef USE_SPESC_HW
+	else if (magicnr == ESP32_COMMAND_ID)
+	{
+
+		switch (command)
+		{
+		case ESP_COMMAND_GET_READY:
+		{
+
+			int32_t ind = 0;
+			uint8_t send_buffer[50];
+			send_buffer[ind++] = ESP32_COMMAND_ID; // Magic Number
+			send_buffer[ind++] = (uint8_t)ESP_COMMAND_GET_READY;
+			send_buffer[ind++] = 0x01;
+			VESC_IF->send_app_data(send_buffer, ind);
+			return;
+		}
+		case ESP_COMMAND_ENGINE_SOUND_INFO:
+		{
+			/**
+			 * float pidOutput;
+			 * uint8_t swState;
+			 * float erpm;
+			 * float inputVoltage;
+			 * float motorCurrent;
+			 *  */
+			int32_t ind = 0;
+			uint8_t send_buffer[50];
+			send_buffer[ind++] = ESP32_COMMAND_ID;						 // Magic Number
+			send_buffer[ind++] = (uint8_t)ESP_COMMAND_ENGINE_SOUND_INFO; // FLOAT_COMMAND_ENGINE_SOUND_INFO
+
+			buffer_append_float32_auto(send_buffer, d->pid_value, &ind); // pid output
+			send_buffer[ind++] = (uint8_t)d->switch_state;
+			buffer_append_float32_auto(send_buffer, d->erpm, &ind);									 // erpm
+			buffer_append_float32_auto(send_buffer, VESC_IF->mc_get_input_voltage_filtered(), &ind); // input voltage
+			buffer_append_float32_auto(send_buffer, d->motor_current, &ind);						 // motor current
+
+			VESC_IF->send_app_data(send_buffer, ind);
+			return;
+		}
+		case ESP_COMMAND_GET_ADV_INFO:
+		{ /**
+		*
+		   uint8_t lights_mode;
+		   uint8_t idle_warning_time;
+		   uint16_t engine_sound_volume;
+		   uint8_t over_speed_warning;
+		   flaot battery level 0-1
+		   uint8_t engine_sampling
+		*/
+			int32_t ind = 0;
+			uint8_t send_buffer[50];
+			send_buffer[ind++] = ESP32_COMMAND_ID; // Magic Number
+			send_buffer[ind++] = (uint8_t)ESP_COMMAND_GET_ADV_INFO;
+			send_buffer[ind++] = (uint8_t)d->float_conf.lights_mode;							// light mode
+			send_buffer[ind++] = (uint8_t)d->float_conf.idle_warning_time;						// idld time
+			buffer_append_uint16(send_buffer, d->float_conf.engine_sound_volume, &ind);			// sound volume
+			send_buffer[ind++] = d->float_conf.over_speed_warning;								// over speed alert
+			buffer_append_float32_auto(send_buffer, VESC_IF->mc_get_battery_level(NULL), &ind); // battery level
+			send_buffer[ind++] = d->float_conf.low_battery_warning_level;						// Battery low warning level
+			send_buffer[ind++] = d->float_conf.engine_sampling_source;
+			VESC_IF->send_app_data(send_buffer, ind);
+			return;
+		}
+
+		case ESP_COMMAND_SOUND_GET:
+		{
+			int32_t ind = 0;
+			uint8_t send_buffer[10];
+			send_buffer[ind++] = ESP32_COMMAND_ID;				 // magic nr.
+			send_buffer[ind++] = (uint8_t)ESP_COMMAND_SOUND_GET; // command ID
+			send_buffer[ind++] = d->sound_triggered;
+
+			VESC_IF->send_app_data(send_buffer, ind);
+			// clear
+			d->sound_triggered = 0;
+			return;
+		}
+		case ESP_COMMAND_SOUND_SET: // set command is from vesc tool (button)
+		{
+			uint8_t option_val = 0;
+			if (len == 3)
+			{
+				option_val = buffer[len - 1];
+			}
+			else
+			{
+				if (!VESC_IF->app_is_output_disabled())
+				{
+					VESC_IF->printf("ESP: Missing Args\n");
+					return;
+				}
+			}
+			d->sound_triggered = 0;
+			// check bit and set bit
+			if (CHECK_BIT(option_val, SOUND_HORN_TRIGGERED))
+				d->sound_triggered = option_val;
+			else if (CHECK_BIT(option_val, SOUND_EXCUSE_ME_TRIGGERED))
+				d->sound_triggered = option_val;
+			else if (CHECK_BIT(option_val, SOUND_POLICE_TRIGGERED))
+				d->sound_triggered = option_val;
+
+			VESC_IF->printf("sound_triggered: %d\n", d->sound_triggered);
+
+			return;
+		}
+		case ESP_COMMAND_ENABLE_ITEM_INFO:
+		{
+
+			int32_t ind = 0;
+			uint8_t send_buffer[50];
+			uint8_t enable_item_data = 0;
+			send_buffer[ind++] = ESP32_COMMAND_ID;						// magic nr.
+			send_buffer[ind++] = (uint8_t)ESP_COMMAND_ENABLE_ITEM_INFO; // command ID
+			if (d->float_conf.ext_dcdc_enabled)
+				enable_item_data = enable_item_data | (1 << EXT_DCDC_ENABLE_MASK_BIT);
+			if (d->float_conf.engine_sound_enable)
+				enable_item_data = enable_item_data | (1 << ENGINE_SOUND_ENABLE_MASK_BIT);
+			if (d->float_conf.startup_safety_warning)
+				enable_item_data = enable_item_data | (1 << START_UP_WARNING_ENABLE_MASK_BIT);
+			send_buffer[ind++] = enable_item_data;
+			VESC_IF->send_app_data(send_buffer, ind);
+			return;
+		}
+
+		default:
+		{
+
+			if (!VESC_IF->app_is_output_disabled())
+			{
+				VESC_IF->printf("Float App: Unknown command received %d\n", command);
+			}
+			return;
+		}
+		}
+	}
+
+#endif
+	else
+	{
+
+		if (!VESC_IF->app_is_output_disabled())
+		{
+			VESC_IF->printf("Float App: Wrong magic number %d\n", magicnr);
+		}
+		return;
 	}
 }
 
@@ -2563,6 +3097,11 @@ INIT_FUN(lib_info *info) {
 	VESC_IF->conf_custom_add_config(get_cfg, set_cfg, get_cfg_xml);
 
 	configure(d);
+#ifdef USE_SPESC_HW
+	light_init();
+	reset_lights(d);
+	reset_sound_triggered(d);
+#endif
 
 	if ((d->float_conf.is_buzzer_enabled) || (d->float_conf.inputtilt_remote_type != INPUTTILT_PPM)) {
 		buzzer_init();
