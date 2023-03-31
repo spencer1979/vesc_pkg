@@ -1048,12 +1048,12 @@ static bool check_faults(data *d){
 				return true;
 			}
 			// Above 10 degrees for a half a second? Switch it off
-			if ((fabsf(d->true_pitch_angle) > 12) && (d->current_time - d->reverse_timer > 1)) {
+			if ((fabsf(d->true_pitch_angle) > 12) && (d->current_time - d->reverse_timer > .8)) {
 				d->state = FAULT_REVERSE;
 				return true;
 			}
 			// Above 5 degrees for a full second? Switch it off
-			if ((fabsf(d->true_pitch_angle) >6) && (d->current_time - d->reverse_timer > 1.5)) {
+			if ((fabsf(d->true_pitch_angle) >6) && (d->current_time - d->reverse_timer > 1.6)) {
 				d->state = FAULT_REVERSE;
 				return true;
 			}
@@ -1129,7 +1129,7 @@ static void calculate_setpoint_target(data *d) {
 			d->setpoint_target = 12 * (fabsf(d->reverse_total_erpm) - d->reverse_tolerance) /d->reverse_tolerance;
 		}
 		else {
-			if (fabsf(d->reverse_total_erpm) <= (d->reverse_tolerance *0.8) ) {
+			if (fabsf(d->reverse_total_erpm) <= (d->reverse_tolerance/2) ) {
 				if (d->erpm >= 0){
 					d->setpointAdjustmentType = TILTBACK_NONE;
 					d->reverse_total_erpm = 0;
