@@ -334,7 +334,7 @@ void beep_on(data *d, bool force)
 // SPESC hardware only
 #ifdef USE_SPESC_HW
 
-//#define HW_V2_KEIFER
+#define HW_V2_KEIFER
 #define SEC_TO_MILLS 1000
 #define LIGHT_BLINK_TIME_MIN 300	 // blink 0.3 seconds
 #define LIGHT_BLINK_TIME_MAX 1500	 // blink 1.5 seconds
