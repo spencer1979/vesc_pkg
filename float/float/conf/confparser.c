@@ -105,6 +105,17 @@ int32_t confparser_serialize_float_config(uint8_t *buffer, const float_config *c
 	buffer[ind++] = conf->is_buzzer_enabled;
 	buffer[ind++] = conf->float_disable;
 	buffer_append_float16(buffer, conf->float_version, 1000, &ind);
+	buffer[ind++] = conf->lights_mode;
+	buffer[ind++] = conf->ext_dcdc_enabled;
+	buffer[ind++] = conf->idle_warning_time;
+	buffer[ind++] = (uint8_t)conf->reverse_stop_speed;
+	buffer[ind++] = (uint8_t)conf->reverse_tolerance_scale;
+	buffer[ind++] = conf->engine_sound_enable;
+	buffer[ind++] = conf->engine_sampling_source;
+	buffer_append_uint16(buffer, conf->engine_sound_volume, &ind);
+	buffer[ind++] = conf->startup_safety_warning;
+	buffer[ind++] = (uint8_t)conf->over_speed_warning;
+	buffer[ind++] = (uint8_t)conf->low_battery_warning_level;
 
 	return ind;
 }
@@ -212,6 +223,17 @@ bool confparser_deserialize_float_config(const uint8_t *buffer, float_config *co
 	conf->is_buzzer_enabled = buffer[ind++];
 	conf->float_disable = buffer[ind++];
 	conf->float_version = buffer_get_float16(buffer, 1000, &ind);
+	conf->lights_mode = buffer[ind++];
+	conf->ext_dcdc_enabled = buffer[ind++];
+	conf->idle_warning_time = buffer[ind++];
+	conf->reverse_stop_speed = buffer[ind++];
+	conf->reverse_tolerance_scale = buffer[ind++];
+	conf->engine_sound_enable = buffer[ind++];
+	conf->engine_sampling_source = buffer[ind++];
+	conf->engine_sound_volume = buffer_get_uint16(buffer, &ind);
+	conf->startup_safety_warning = buffer[ind++];
+	conf->over_speed_warning = buffer[ind++];
+	conf->low_battery_warning_level = buffer[ind++];
 
 	return true;
 }
@@ -312,5 +334,16 @@ void confparser_set_defaults_float_config(float_config *conf) {
 	conf->is_buzzer_enabled = APPCONF_FLOAT_IS_BUZZER_ENABLED;
 	conf->float_disable = APPCONF_FLOAT_DISABLE;
 	conf->float_version = APPCONF_FLOAT_VERSION;
+	conf->lights_mode = APPCONF_FLOAT_LIGHT_MODE;
+	conf->ext_dcdc_enabled = APPCONF_FLOAT_EXT_DCDC_ENABLED;
+	conf->idle_warning_time = APPCONF_FLOAT_IDLE_WARINIG_TIME;
+	conf->reverse_stop_speed = APPCONF_FLOAT_REVERSE_STOP_SPEED;
+	conf->reverse_tolerance_scale = APPCONF_FLOAT_REVERSE_TOLERANCE_SCALE;
+	conf->engine_sound_enable = APPCONF_FLOAT_ENABLE_ENG_SOUND;
+	conf->engine_sampling_source = APPCONF_FLOAT_ENGINE_SAMPLING_SOURCE;
+	conf->engine_sound_volume = APPCONF_FLOAT_ENG_SOUND_VOLUME;
+	conf->startup_safety_warning = APPCONF_FLOAT_ENG_SAFETY_WARNING;
+	conf->over_speed_warning = APPCONF_FLOAT_ENG_OVER_SPEED;
+	conf->low_battery_warning_level = APPCONF_FLOAT_LOW_BATTERY_WARNING_LEVEL;
 }
 

@@ -150,9 +150,12 @@ Item {
                 return;
             }
             if (msgtype == 1) {
-                var pid_value = dv.getFloat32(ind); ind += 4;
+                var voltage = dv.getFloat32(ind); ind += 4;
+                var erpmcurrent = dv.getFloat32(ind); ind += 4;
+                var smoothprop = dv.getFloat32(ind); ind += 4;
                 var pitch = dv.getFloat32(ind); ind += 4;
                 var roll = dv.getFloat32(ind); ind += 4;
+                var scaledkp = dv.getFloat32(ind); ind += 4;
                 var state = dv.getInt8(ind); ind += 1;
                 var setpointAdjustmentType = state >> 4;
                 state = state &0xF;
@@ -161,19 +164,22 @@ Item {
                 var adc2 = dv.getFloat32(ind); ind += 4;
 
                 var float_setpoint = dv.getFloat32(ind); ind += 4;
-                var float_atr = dv.getFloat32(ind); ind += 4;
-                var float_braketilt = dv.getFloat32(ind); ind += 4;
-                var float_torquetilt = dv.getFloat32(ind); ind += 4;
-                var float_turntilt = dv.getFloat32(ind); ind += 4;
                 var float_inputtilt = dv.getFloat32(ind); ind += 4;
-
-                var true_pitch = dv.getFloat32(ind); ind += 4;
-                var filtered_current = dv.getFloat32(ind); ind += 4;
-                var float_acc_diff = dv.getFloat32(ind); ind += 4;
-                var applied_booster_current = dv.getFloat32(ind); ind += 4;
-                var motor_current = dv.getFloat32(ind); ind += 4;
                 var throttle_val = dv.getFloat32(ind); ind += 4;
-
+               
+                var surge_lasttime = dv.getFloat32(ind); ind += 4;
+                var surge_lastcycle = dv.getFloat32(ind); ind += 4;
+                
+                var lastwheelslip = dv.getFloat32(ind); ind += 4;
+                var durwheelslip = dv.getFloat32(ind); ind += 4;
+                var startaccel1 = dv.getFloat32(ind); ind += 4;
+                var startaccel2 = dv.getFloat32(ind); ind += 4;
+                var erpmfactor = dv.getFloat32(ind); ind += 4;                
+                var wheelslipstart = dv.getFloat32(ind); ind += 4;
+                var wheelslipcurrent = dv.getFloat32(ind); ind += 4;
+                var debugwheelslip = dv.getFloat32(ind); ind += 4;
+                var wheelslipend = dv.getFloat32(ind); ind += 4;                
+                
                 // var debug1 = dv.getFloat32(ind); ind += 4;
                 // var debug2 = dv.getFloat32(ind); ind += 4;
 
@@ -262,26 +268,31 @@ Item {
                     "Switch              : " + switchString + "\n"
 
                 rt_data.text =
-                    "Current (Requested) : " + pid_value.toFixed(2) + "A\n" +
-                    "Current (Motor)     : " + motor_current.toFixed(2) + "A\n" +
+                    "Voltage             : " + voltage.toFixed(1) + "V\n" +
+                    "ERPM                : " + erpmcurrent.toFixed(0) + "\n" +
+                    "Proportional        : " + smoothprop.toFixed(2) + "\n" +
                     "Pitch               : " + pitch.toFixed(2) + "°\n" +
                     "Roll                : " + roll.toFixed(2) + "°\n" +
-                    "ADC1 / ADC2         : " + adc1.toFixed(2) + "V / " + adc2.toFixed(2) + "V\n"
-
+                    "ADC1 / ADC2         : " + adc1.toFixed(2) + "V / " + adc2.toFixed(2) + "V\n" +                 
+                    "Angle P (kp)        : " + scaledkp.toFixed(0) + " s\n" +
+                    "Last Surge Time     : " + surge_lasttime.toFixed(0) + " s\n" +
+                    "Last Surge Duration : " + surge_lastcycle.toFixed(3) + " s\n" 
+  
                 setpoints.text =
                     "Setpoint            : " + float_setpoint.toFixed(2) + "°\n" +
-                    "ATR Setpoint        : " + float_atr.toFixed(2) + "°\n" +
-                    "BrakeTilt Setpoint  : " + float_braketilt.toFixed(2) + "°\n" +
-                    "TorqueTilt Setpoint : " + float_torquetilt.toFixed(2) + "°\n" +
-                    "TurnTilt Setpoint   : " + float_turntilt.toFixed(2) + "°\n" +
-                    "RemoteTilt Setpoint  : " + float_inputtilt.toFixed(2) + "°\n"
-
-                debug.text =
-                    "True Pitch          : " + true_pitch.toFixed(2) + "°\n" +
-                    "Torque              : " + filtered_current.toFixed(2) + "A\n" +
-                    "Acc. Diff.          : " + float_acc_diff.toFixed(2) + "\n" +
-                    "Booster Current     : " + applied_booster_current.toFixed(2) + "A\n" +
+                    "RemoteTilt Setpoint : " + float_inputtilt.toFixed(2) + "°\n" +
                     "Remote Input        : " + (throttle_val * 100).toFixed(0) + "%\n"
+                    
+                debug.text =
+                    "Last Wheelslip Time : " + lastwheelslip.toFixed(0) + " s \n" +
+                    "Wheelslip Duration  : " + durwheelslip.toFixed(3) + " s \n" +              
+                    "Time to ReverseAccel: " + startaccel1.toFixed(3) + " s \n" +  
+                    "Time to Reduce Accel: " + startaccel2.toFixed(3) + " s \n" +
+                    "Start ERPM Factor   : " + erpmfactor.toFixed(1) + "\n" +  
+                    "Wheelslip Start Acce: " + wheelslipstart.toFixed(1) + "\n" +
+                    "Wheelslip Start Curr: " + wheelslipcurrent.toFixed(1) + " A\n" +
+                    "Wheelslip Debug/Last: " + debugwheelslip.toFixed(1) + "\n" +
+                    "Wheelslip End Accel : " + wheelslipend.toFixed(1) + "\n" 
                 }
             }
         }
@@ -626,6 +637,78 @@ Item {
                     to: 1
                     Layout.fillWidth: true
                 }
+                // Sound Trigger 
+                Text {
+                    id: soundTriggersHeader
+                    color: Utility.getAppHexColor("lightText")
+                    font.family: "DejaVu Sans Mono"
+                    Layout.margins: 0
+                    Layout.leftMargin: 0
+                    Layout.fillWidth: true
+                    text: "Sounds Trigger"
+                    font.underline: true
+                    font.weight: Font.Black
+                    font.pointSize: 14
+                }
+                Button {
+                    id: carHornOnButton
+                    text: "Car Horn"
+                    Layout.fillWidth: true
+                    onClicked: {
+                                var buffer = new ArrayBuffer(3)
+                                var dv = new DataView(buffer)
+                                var ind = 0
+                                var bit=0
+                                dv.setUint8(ind, 102); ind += 1
+                                dv.setUint8(ind, 4); ind += 1
+                                dv.setUint8(ind,1<<0 ); ind += 1
+                                mCommands.sendCustomAppData(buffer)
+                            
+                                }
+                }
+                Button {
+                    id: excuseMeOnButton
+                    text: "Excuse Me"
+                    Layout.fillWidth: true
+                    onClicked: {
+                                var buffer = new ArrayBuffer(3)
+                                var dv = new DataView(buffer)
+                                var ind = 0
+                                dv.setUint8(ind, 102); ind += 1
+                                dv.setUint8(ind,4 ); ind += 1
+                                dv.setUint8(ind,1<<1 ); ind += 1
+                                mCommands.sendCustomAppData(buffer)
+                        }
+                }
+                Button {
+                    id: sirenOnButton
+                    text: "Siren"
+                    Layout.fillWidth: true
+                    onClicked: {
+                                var buffer = new ArrayBuffer(3)
+                                var dv = new DataView(buffer)
+                                var ind = 0
+                                dv.setUint8(ind, 102); ind += 1
+                                dv.setUint8(ind, 4  ); ind += 1
+                                dv.setUint8(ind,1<<2 ); ind += 1
+                                mCommands.sendCustomAppData(buffer)
+                        }
+                }
+                Button {
+                    id: dangerOnButton
+                    text: "Danger"
+                    Layout.fillWidth: true
+                    onClicked: {
+                                var buffer = new ArrayBuffer(3)
+                                var dv = new DataView(buffer)
+                                var ind = 0
+                                dv.setUint8(ind, 102); ind += 1
+                                dv.setUint8(ind, 4  ); ind += 1
+                                dv.setUint8(ind,1<<3 ); ind += 1
+                                mCommands.sendCustomAppData(buffer)
+                        }
+                }
+
             }
 
             ColumnLayout { // Tunes Page

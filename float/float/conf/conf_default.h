@@ -478,6 +478,61 @@
 #define APPCONF_FLOAT_VERSION 1
 #endif
 
+// Headlight and Brake Light
+#ifndef APPCONF_FLOAT_LIGHT_MODE
+#define APPCONF_FLOAT_LIGHT_MODE 1
+#endif
+
+// Enable EXT DC-DC 
+#ifndef APPCONF_FLOAT_EXT_DCDC_ENABLED
+#define APPCONF_FLOAT_EXT_DCDC_ENABLED 1
+#endif
+
+// Idle Warning Timer
+#ifndef APPCONF_FLOAT_IDLE_WARINIG_TIME
+#define APPCONF_FLOAT_IDLE_WARINIG_TIME 6
+#endif
+
+// Reverse Stop Speed
+#ifndef APPCONF_FLOAT_REVERSE_STOP_SPEED
+#define APPCONF_FLOAT_REVERSE_STOP_SPEED 100
+#endif
+
+// Reverse Tolerance Scale
+#ifndef APPCONF_FLOAT_REVERSE_TOLERANCE_SCALE
+#define APPCONF_FLOAT_REVERSE_TOLERANCE_SCALE 1
+#endif
+
+// Enable Engine Sound
+#ifndef APPCONF_FLOAT_ENABLE_ENG_SOUND
+#define APPCONF_FLOAT_ENABLE_ENG_SOUND 1
+#endif
+
+// Engine Sampling Source
+#ifndef APPCONF_FLOAT_ENGINE_SAMPLING_SOURCE
+#define APPCONF_FLOAT_ENGINE_SAMPLING_SOURCE 0
+#endif
+
+// Engine Sound Volume
+#ifndef APPCONF_FLOAT_ENG_SOUND_VOLUME
+#define APPCONF_FLOAT_ENG_SOUND_VOLUME 200
+#endif
+
+// Safety Warning
+#ifndef APPCONF_FLOAT_ENG_SAFETY_WARNING
+#define APPCONF_FLOAT_ENG_SAFETY_WARNING 1
+#endif
+
+// Over Speed Warning
+#ifndef APPCONF_FLOAT_ENG_OVER_SPEED
+#define APPCONF_FLOAT_ENG_OVER_SPEED 20
+#endif
+
+// Low Battery Warning Level
+#ifndef APPCONF_FLOAT_LOW_BATTERY_WARNING_LEVEL
+#define APPCONF_FLOAT_LOW_BATTERY_WARNING_LEVEL 0
+#endif
+
 // CONF_DEFAULT_H_
 #endif
 

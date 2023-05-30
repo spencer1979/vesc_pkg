@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VT=/usr/local/bin/vesc_tool
+VT=/usr/local/bin/vesc_tool_6.02
 
 set -e
 

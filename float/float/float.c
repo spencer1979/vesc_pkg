@@ -17,7 +17,7 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
+#include "st_types.h"
 #include "vesc_c_if.h"
 
 #include "conf/datatypes.h"
@@ -31,6 +31,8 @@
 
 // Acceleration average
 #define ACCEL_ARRAY_SIZE 40
+#define ACCEL_ARRAY_SIZE1 10
+#define ERPM_ARRAY_SIZE1 20
 
 HEADER
 
@@ -41,6 +43,45 @@ HEADER
 #define RAD2DEG_f(rad) 		((rad) * (float)(180.0 / M_PI))
 
 #define UNUSED(x) (void)(x)
+// SPESC HW only
+#define USE_SPESC_HW
+// only for SPESC hardware 
+#ifdef USE_SPESC_HW
+#define HW_VERSION_MAJOR 2
+#define HW_VERSION_MINOR 0
+#define ESP32_COMMAND_ID 102
+#define CHECK_BIT(var, pos) ((var) & (1 << (pos)))
+typedef enum
+{	ESP_COMMAND_GET_READY=0,
+	ESP_COMMAND_GET_ADV_INFO ,  // get ADVANCED setting only for SPESC
+	ESP_COMMAND_ENGINE_SOUND_INFO, // engine sound info , erpm ,duty
+	// esp32 get the sound trigger
+	ESP_COMMAND_SOUND_GET,
+	// app set sound trigger
+	ESP_COMMAND_SOUND_SET,
+	// enable item data
+	ESP_COMMAND_ENABLE_ITEM_INFO,
+
+} esp_commands;
+
+typedef enum
+{
+	SOUND_HORN_TRIGGERED=0 ,
+	SOUND_EXCUSE_ME_TRIGGERED,
+	SOUND_POLICE_TRIGGERED,
+	SOUND_DANGER_TRIGGERED
+} sound_triggered_mask;
+
+
+//Determine the function of a certain bit
+typedef enum
+{
+EXT_DCDC_ENABLE_MASK_BIT=0,
+ENGINE_SOUND_ENABLE_MASK_BIT,
+START_UP_WARNING_ENABLE_MASK_BIT,
+} float_enable_mask;
+
+#endif
 
 // Data type
 typedef enum {
@@ -208,7 +249,79 @@ typedef struct {
 	int rc_counter;
 	float rc_current_target;
 	float rc_current;
-
+	
+	//Sitcky Tilt
+	float stickytilt_val; 
+	bool stickytilton; 
+	float stickytilt_maxval; 
+	float last_throttle_val;
+	
+	// Feature: Surge
+	float surge_timer;			//Timer to monitor surge cycle and period
+	bool surge;				//Identifies surge state which drives duty to max
+	float differential;			//Pitch differential
+	float surge_period;		//.75	//Period between each surge, in seconds. Prevents runaway and instability. 
+	float surge_cycle; 		//.30	//Length of surge, in seconds
+	float surge_startanglespeed;	//50	//Nose speed that can initiate a surge
+	float surge_difflimit;		//2	//Pitch required at start angle speed to initiate surge, in  degrees
+	float surge_diffcount;			//Counter to watch for continuous start angle speed or else reset to zero
+	float surge_currentmargin;	//1.5	//Higher current margin ends surge later, min value of 1
+	float debug1;
+	float debug2;
+	float debug3;
+	float debug4;
+	float debug5;
+	float debug6;
+	float debug7;
+	float debug8;
+	float debug9;
+	float debug10;	
+	
+	//Traction Control
+	float wheelslip_margin;
+	float accel_limit;
+	float wheelslip_timeron;
+	float wheelslip_timeroff;
+	float wheelslip_erpmlimit;
+	bool wheelslip_highaccelon1;
+	bool wheelslip_highaccelon2;
+	float wheelslip_accelstart;
+	float wheelslip_accelend;
+	float wheelslip_erpm;
+	float wheelslip_scaleaccel;
+	float wheelslip_scaleerpm;
+	float wheelslip_accelstartval;
+	float wheelslip_currentstart;
+	float accelhist1[ACCEL_ARRAY_SIZE1];
+	float accelavg1;
+	int accelidx1;
+	float erpmhist1[ERPM_ARRAY_SIZE1];
+	float erpmavg1;
+	int erpmidx1;	
+	float x_est_last3;
+	float P_last3;
+	float x_est_last4;
+	float P_last4;
+	float erpm_smooth;
+	
+	// Drop Detection
+	bool wheelslip_drop;
+	float wheelslip_droptimeron;
+	float wheelslip_droptimeroff;
+	float last_accel_z;
+	float accel_z;
+	float accel[3];
+	float wheelslip_dropcount;
+	float applied_accel_z_reduction;
+	float wheelslip_droplimit;
+	
+	// Angle P Scaling
+	float x_est_last1;
+	float P_last1;
+	float x_est_last2;
+	float P_last2;
+	float prop_smooth;
+	
 	// Log values
 	float float_setpoint, float_atr, float_braketilt, float_torquetilt, float_turntilt, float_inputtilt;
 	float float_expected_acc, float_measured_acc, float_acc_diff;
@@ -217,6 +330,13 @@ typedef struct {
 	int debug_render_1, debug_render_2;
 	int debug_sample_field, debug_sample_count, debug_sample_index;
 	int debug_experiment_1, debug_experiment_2, debug_experiment_3, debug_experiment_4, debug_experiment_5, debug_experiment_6;
+
+#ifdef USE_SPESC_HW
+	bool brk_light_state, light_state, is_head_light_off,is_brake_light_off, brk_detect;
+	float light_blink_time, brk_light_blink_time, light_blink_timer , idle_warning_time_out;
+	uint8_t sound_triggered;
+#endif
+
 } data;
 
 static void brake(data *d);
@@ -225,14 +345,25 @@ static void set_current(data *d, float current);
 /**
  * BUZZER / BEEPER on Servo Pin
  */
+#if defined(USE_SPESC_HW) && (HW_VERSION_MAJOR >= 3) && (HW_VERSION_MINOR >= 2)
+#define BUZZER_GPIO GPIOB
+#define BUZZER_DCDC_PIN 9
+#define EXT_BUZZER_ON() VESC_IF->set_pad(BUZZER_GPIO, BUZZER_DCDC_PIN)
+#define EXT_BUZZER_OFF() VESC_IF->clear_pad(BUZZER_GPIO, BUZZER_DCDC_PIN)
+#else
 const VESC_PIN buzzer_pin = VESC_PIN_PPM;
 
 #define EXT_BUZZER_ON()  VESC_IF->io_write(buzzer_pin, 1)
 #define EXT_BUZZER_OFF() VESC_IF->io_write(buzzer_pin, 0)
+#endif 
 
 void buzzer_init()
 {
+#if defined(USE_SPESC_HW) && (HW_VERSION_MAJOR >= 3) && (HW_VERSION_MINOR >= 2)
+	VESC_IF->set_pad_mode(BUZZER_GPIO, BUZZER_DCDC_PIN, PAL_STM32_MODE_OUTPUT | PAL_STM32_OSPEED_HIGHEST | PAL_STM32_OTYPE_PUSHPULL);
+#else
 	VESC_IF->io_set_mode(buzzer_pin, VESC_PIN_MODE_OUTPUT);
+#endif
 }
 
 void buzzer_update(data *d)
@@ -284,6 +415,254 @@ void beep_on(data *d, bool force)
 	if (force || (d->beep_num_left == 0))
 		EXT_BUZZER_ON();
 }
+// SPESC hardware only
+#ifdef USE_SPESC_HW
+#define SEC_TO_MILLS 1000
+#define LIGHT_BLINK_TIME_MIN 300	 // blink 0.3 seconds
+#define LIGHT_BLINK_TIME_MAX 1500	 // blink 1.5 seconds
+#define BRK_LIGHT_BLINK_TIME_MIN 150 // 150 ms rear light blink when brake  .
+#if (HW_VERSION_MAJOR <=2)
+#define REAR_LIGHT_GPIO GPIOB
+#define REAR_LIGHT_PIN 7
+#define FWD_LIGHT_GPIO GPIOB
+#define FWD_LIGHT_PIN 5
+#else
+#define FWD_LIGHT_GPIO GPIOC
+#define FWD_LIGHT_PIN 5
+#define REAR_LIGHT_GPIO GPIOB
+#define REAR_LIGHT_PIN 5
+#endif
+#define FWD_LIGHT_ON() VESC_IF->set_pad(FWD_LIGHT_GPIO, FWD_LIGHT_PIN)
+#define FWD_LIGHT_OFF() VESC_IF->clear_pad(FWD_LIGHT_GPIO, FWD_LIGHT_PIN)
+#define REAR_LIGHT_ON() VESC_IF->set_pad(REAR_LIGHT_GPIO, REAR_LIGHT_PIN)
+#define REAR_LIGHT_OFF() VESC_IF->clear_pad(REAR_LIGHT_GPIO, REAR_LIGHT_PIN)
+// #define FAN_GPIO		GPIOC
+// #define FAN_PIN			12
+#define EXT_DCDC_GPIO GPIOD
+#define EXT_DCDC_PIN 2
+#define EXT_DCDC_ON() VESC_IF->set_pad(EXT_DCDC_GPIO, EXT_DCDC_PIN)
+#define EXT_DCDC_OFF() VESC_IF->clear_pad(EXT_DCDC_GPIO, EXT_DCDC_PIN)
+// get_idle_warning_timer( d->float_conf.idle_warning)
+
+float utils_map(float x, float in_min, float in_max, float out_min, float out_max)
+{
+	return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
+
+float get_idle_warning_timer(FLOAT_IDLE_TIME mode)
+{
+
+	switch (mode)
+	{
+
+	case IDLE_WARNING_TIME_DISABLE:
+
+	{
+		return 0;
+	}
+
+	case IDLE_WARNING_TIME_1M:
+
+	{
+		return 60 * 1;
+	}
+
+	case IDLE_WARNING_TIME_5M:
+	{
+		return 60 * 5;
+	}
+
+	break;
+	case IDLE_WARNING_TIME_10M:
+	{
+		return 60 * 10;
+	}
+	case IDLE_WARNING_TIME_30M:
+	{
+		return 30 * 30;
+	};
+	case IDLE_WARNING_TIME_60M:
+	{
+		return 60 * 60;
+	}
+	case IDLE_WARNING_TIME_120M:
+	{
+		return 120 * 120;
+	}
+	default:
+	{
+		return 0;
+	}
+	}
+}
+
+void spesc_io_init()
+{
+
+	VESC_IF->set_pad_mode(FWD_LIGHT_GPIO, FWD_LIGHT_PIN, PAL_STM32_MODE_OUTPUT | PAL_STM32_OSPEED_HIGHEST | PAL_STM32_OTYPE_PUSHPULL);
+	VESC_IF->set_pad_mode(REAR_LIGHT_GPIO, REAR_LIGHT_PIN, PAL_STM32_MODE_OUTPUT | PAL_STM32_OSPEED_HIGHEST | PAL_STM32_OTYPE_PUSHPULL);
+	VESC_IF->set_pad_mode(EXT_DCDC_GPIO, EXT_DCDC_PIN, PAL_STM32_MODE_OUTPUT | PAL_STM32_OSPEED_HIGHEST | PAL_STM32_OTYPE_PUSHPULL);
+}
+
+
+void turn_head_light_on(data *d)
+{
+	if (d->is_head_light_off)
+	{
+		FWD_LIGHT_ON();
+		d->is_head_light_off = false;
+	}
+}
+void turn_head_light_off(data *d)
+{ 	
+	if (!d->is_head_light_off)
+	{
+		FWD_LIGHT_OFF();
+	d->is_head_light_off=true;
+	}
+	
+}
+
+void turn_brake_light_on(data *d)
+{
+	if (d->is_brake_light_off)
+	{
+	REAR_LIGHT_ON();
+	d->is_brake_light_off = false;
+	}
+}
+void turn_brake_light_off(data *d)
+{
+	if (!d->is_brake_light_off)
+	{
+	REAR_LIGHT_OFF();
+	d->is_brake_light_off = true;
+	}
+}
+
+void flash_the_lights(data *d)
+{
+	if ((d->current_time - d->light_blink_time) * SEC_TO_MILLS > d->light_blink_timer)
+	{
+		d->light_blink_timer = utils_map(d->abs_erpm, 0, LIGHT_BLINK_TIME_MAX, LIGHT_BLINK_TIME_MAX, LIGHT_BLINK_TIME_MIN);
+		if (d->light_blink_timer < LIGHT_BLINK_TIME_MIN)
+			d->light_blink_timer = LIGHT_BLINK_TIME_MIN;
+		d->light_state = !d->light_state;
+		d->light_blink_time = d->current_time;
+		
+	}
+	if (d->light_state)
+	{
+		turn_head_light_on(d);
+		turn_brake_light_off(d);
+	}
+	else
+	{
+	
+		turn_head_light_off(d);
+		turn_brake_light_on(d);
+	}
+}
+
+
+
+static void check_lights(data *d)
+
+{
+
+	if (d->light_blink_time == 0)
+		d->light_blink_time = d->current_time;
+	if (d->brk_light_blink_time == 0)
+		d->brk_light_blink_time = d->current_time;
+
+	if (d->abs_erpm > 20 && d->state == RUNNING) // motor spin
+	{
+		// reset power alert time ,because motor is running .
+
+		if (d->pid_value > -6)
+		{
+			switch(d->float_conf.lights_mode)
+			{
+
+			case FLOAT_LIGHT_FLASH:
+				flash_the_lights(d);
+				break;
+
+			case FLOAT_LIGHT_OFF:
+				turn_head_light_off(d);
+				turn_brake_light_off(d);
+
+				break;
+
+			case FLOAT_LIGHT_FULL_ON:
+				turn_head_light_on(d);
+				turn_brake_light_on(d);
+
+				break;
+			}
+		}
+		else // brake detected
+		{
+
+			// if erpm >0 is forward Brake , erpm < 0 if reverse brake
+			if ((d->current_time - d->brk_light_blink_time) * SEC_TO_MILLS >= BRK_LIGHT_BLINK_TIME_MIN)
+			{
+				d->brk_light_state = !d->brk_light_state;
+				d->brk_light_blink_time = d->current_time;
+			}
+
+			d->brk_light_state ? (turn_brake_light_on(d)) : (turn_brake_light_off(d));
+		}
+
+	}
+	//In the idle time, except for setting the light mode to be fully on, other settings are all off.
+	if (d->state > RUNNING  || d->state == STARTUP )
+ 
+	{
+		if (d->float_conf.lights_mode == FLOAT_LIGHT_FULL_ON)
+		{
+			turn_head_light_on(d);
+			turn_brake_light_on(d);
+		}
+		else
+		{
+			turn_head_light_off(d);
+			turn_brake_light_off(d);
+		}
+	}
+}
+
+void reset_lights(data *d)
+{
+	// reset time var
+	d->light_blink_time = 0;
+	d->brk_light_blink_time = 0;
+	d->idle_warning_time_out=get_idle_warning_timer(d->float_conf.idle_warning_time);
+	// light blink timer
+	d->light_blink_timer = LIGHT_BLINK_TIME_MAX;
+	d->is_brake_light_off=true;
+	d->is_head_light_off=true;
+	// init the light mode
+	if ((d->float_conf.lights_mode) == FLOAT_LIGHT_FULL_ON)
+	{
+	turn_brake_light_on(d);
+	turn_head_light_on(d);
+	}
+	else
+	{
+	turn_brake_light_off(d);
+	turn_head_light_off(d);
+	}
+	
+}
+// reset soune triggered
+void reset_sound_triggered(data *d)
+
+{
+	d->sound_triggered = 0;
+}
+
+#endif
 
 // Utility Functions
 static float biquad_process(Biquad *biquad, float in) {
@@ -326,6 +705,10 @@ static void app_init(data *d) {
 	// Allow saving of odometer
 	d->odometer_dirty = 0;
 	d->odometer = VESC_IF->mc_get_odometer();
+	#ifdef USE_SPESC_HW
+	VESC_IF->sleep_ms(1500);
+	(d->float_conf.ext_dcdc_enabled) ? EXT_DCDC_ON() :EXT_DCDC_OFF() ;
+	#endif
 }
 
 static void configure(data *d) {
@@ -361,7 +744,7 @@ static void configure(data *d) {
 	// Feature: Stealthy start vs normal start (noticeable click when engaging) - 0-20A
 	d->start_counter_clicks_max = 3;
 	// Feature: Soft Start
-	d->softstart_ramp_step_size = 500 / d->float_conf.hertz;
+	d->softstart_ramp_step_size = (float)100 / d->float_conf.hertz;
 	// Feature: Dirty Landings
 	d->startup_pitch_trickmargin = d->float_conf.startup_dirtylandings_enabled ? 10 : 0;
 
@@ -416,8 +799,8 @@ static void configure(data *d) {
 	///////////////////////////// WIP */
 	
 	// Feature: Reverse Stop
-	d->reverse_tolerance = 50000;
-	d->reverse_stop_step_size = 100.0 / d->float_conf.hertz;
+	d->reverse_tolerance = 50000 *  (float) d->float_conf.reverse_tolerance_scale;
+	d->reverse_stop_step_size = (float)d->float_conf.reverse_stop_speed / d->float_conf.hertz;
 
 	// Init Filters
 	float loop_time_filter = 3.0; // Originally Parameter, now hard-coded to 3Hz
@@ -482,6 +865,14 @@ static void configure(data *d) {
 		d->state = STARTUP;
 		beep_alert(d, 1, false);
 	}
+#ifdef USE_SPESC_HW
+	reset_sound_triggered(d);
+	reset_lights(d);
+	// init dcdc converter
+	(d->float_conf.ext_dcdc_enabled) ? EXT_DCDC_ON() :EXT_DCDC_OFF() ;
+#endif
+
+
 }
 
 static void reset_vars(data *d) {
@@ -494,7 +885,9 @@ static void reset_vars(data *d) {
 	d->setpoint_target = 0;
 	d->applied_booster_current = 0;
 	d->noseangling_interpolated = 0;
-	d->inputtilt_interpolated = 0;
+	if (d->inputtilt_interpolated != d->stickytilt_val || !(VESC_IF->get_ppm_age() < 1)) { 	// Persistent sticky tilt value if we are at value with remote connected
+		d->inputtilt_interpolated = 0;			// Reset other values
+	}
 	d->torquetilt_target = 0;
 	d->torquetilt_interpolated = 0;
 	d->atr_target = 0;
@@ -525,11 +918,21 @@ static void reset_vars(data *d) {
 	d->accel_gap = 0;
 	d->direction_counter = 0;
 
-	for (int i = 0; i < 40; i++)
+	for (int i = 0; i < ACCEL_ARRAY_SIZE; i++)
 		d->accelhist[i] = 0;
 	d->accelidx = 0;
 	d->accelavg = 0;
 
+	for (int j = 0; j < ACCEL_ARRAY_SIZE1; j++)
+		d->accelhist1[j] = 0;
+	d->accelidx1 = 0;
+	d->accelavg1 = 0;
+	
+	for (int k = 0; k < ERPM_ARRAY_SIZE1; k++)
+		d->erpmhist1[k] = 0;
+	d->erpmidx1 = 0;
+	d->erpmavg1 = 0;
+	
 	// Turntilt:
 	d->last_yaw_angle = 0;
 	d->yaw_aggregate = 0;
@@ -540,6 +943,19 @@ static void reset_vars(data *d) {
 	// RC Move:
 	d->rc_steps = 0;
 	d->rc_current = 0;
+	
+	//Angle P Scaling
+	d->x_est_last1 = 0;
+	d->P_last1 = 0;
+	d->x_est_last2 = 0;
+	d->P_last2 = 0;	
+	d->x_est_last3 = 0;
+	d->P_last3 = 0;
+	d->x_est_last4 = 0;
+	d->P_last4 = 0;
+	#ifdef USE_SPESC_HW
+	reset_lights(d);
+	#endif
 }
 
 
@@ -749,17 +1165,17 @@ static bool check_faults(data *d){
 				d->state = FAULT_SWITCH_FULL;
 				return true;
 			}
-			if (fabsf(d->true_pitch_angle) > 15) {
+			if (fabsf(d->true_pitch_angle) > 17) {
 				d->state = FAULT_REVERSE;
 				return true;
 			}
 			// Above 10 degrees for a half a second? Switch it off
-			if ((fabsf(d->true_pitch_angle) > 10) && (d->current_time - d->reverse_timer > .5)) {
+			if ((fabsf(d->true_pitch_angle) >12) && (d->current_time - d->reverse_timer > .5)) {
 				d->state = FAULT_REVERSE;
 				return true;
 			}
 			// Above 5 degrees for a full second? Switch it off
-			if ((fabsf(d->true_pitch_angle) > 5) && (d->current_time - d->reverse_timer > 1)) {
+			if ((fabsf(d->true_pitch_angle) > 7) && (d->current_time - d->reverse_timer > 1)) {
 				d->state = FAULT_REVERSE;
 				return true;
 			}
@@ -767,7 +1183,7 @@ static bool check_faults(data *d){
 				d->state = FAULT_REVERSE;
 				return true;
 			}
-			if (fabsf(d->true_pitch_angle) < 5) {
+			if (fabsf(d->true_pitch_angle) < 7) {
 				d->reverse_timer = d->current_time;
 			}
 		}
@@ -819,7 +1235,7 @@ static bool check_faults(data *d){
 
 static void calculate_setpoint_target(data *d) {
 	float input_voltage = VESC_IF->mc_get_input_voltage_filtered();
-
+	
 	if (input_voltage < d->float_conf.tiltback_hv) {
 		d->tb_highvoltage_timer = d->current_time;
 	}
@@ -832,10 +1248,10 @@ static void calculate_setpoint_target(data *d) {
 		d->reverse_total_erpm += d->erpm;
 		if (fabsf(d->reverse_total_erpm) > d->reverse_tolerance) {
 			// tilt down by 10 degrees after 50k aggregate erpm
-			d->setpoint_target = 10 * (fabsf(d->reverse_total_erpm) - d->reverse_tolerance) / 50000;
+			d->setpoint_target = 12 * (fabsf(d->reverse_total_erpm) - d->reverse_tolerance) /d->reverse_tolerance;
 		}
 		else {
-			if (fabsf(d->reverse_total_erpm) <= d->reverse_tolerance / 2) {
+			if (fabsf(d->reverse_total_erpm) <= 25000) {
 				if (d->erpm >= 0){
 					d->setpointAdjustmentType = TILTBACK_NONE;
 					d->reverse_total_erpm = 0;
@@ -844,33 +1260,8 @@ static void calculate_setpoint_target(data *d) {
 				}
 			}
 		}
-	} else if ((fabsf(d->acceleration) > 15) &&					// this isn't normal, either wheelslip or wheel getting stuck
-			  (SIGN(d->acceleration) == SIGN(d->erpm)) &&		// we only act on wheelslip, not when the wheel gets stuck
-			  (d->abs_duty_cycle > 0.3) &&
-			  (d->abs_erpm > 2000))								// acceleration can jump a lot at very low speeds
-	{
-		d->state = RUNNING_WHEELSLIP;
-		d->setpointAdjustmentType = TILTBACK_NONE;
-		d->wheelslip_timer = d->current_time;
-		if (d->is_upside_down) {
-			d->traction_control = true;
-		}
 	} else if (d->state == RUNNING_WHEELSLIP) {
-		if (fabsf(d->acceleration) < 10) {
-			// acceleration is slowing down, traction control seems to have worked
-			d->traction_control = false;
-		}
-		// Remain in wheelslip state for at least 500ms to avoid any overreactions
-		if (d->abs_duty_cycle > d->max_duty_with_margin) {
-			d->wheelslip_timer = d->current_time;
-		}
-		else if (d->current_time - d->wheelslip_timer > 0.5) {
-			if (d->abs_duty_cycle < 0.7) {
-				// Leave wheelslip state only if duty < 70%
-				d->traction_control = false;
-				d->state = RUNNING;
-			}
-		}
+		d->setpointAdjustmentType = TILTBACK_NONE;
 	} else if (d->abs_duty_cycle > d->float_conf.tiltback_duty) {
 		if (d->erpm > 0) {
 			d->setpoint_target = d->float_conf.tiltback_duty_angle;
@@ -1109,14 +1500,64 @@ static void apply_inputtilt(data *d){ // Input Tiltback
 
 	// if (d->float_conf.roll_steer_erpm_kp >= 0 || d->state != RUNNING_WHEELSLIP) { // Pause and gradually decrease ERPM-based Input Tilt during wheelslip
 	// 	if (fabsf(input_tiltback_target - d->inputtilt_interpolated) < d->inputtilt_step_size){
-	// 		d->inputtilt_interpolated = input_tiltback_target;
+	// 		d->inputtilt_interpolated = input_tiltback_target;	// DEBUG
 	// 	} else if (input_tiltback_target - d->inputtilt_interpolated > 0){
 	// 		d->inputtilt_interpolated += d->inputtilt_step_size;
 	// 	} else {
 	// 		d->inputtilt_interpolated -= d->inputtilt_step_size;
 	// 	}
 	// }
+	
+	//Sticky Tilt Input Start
+	int truncanglelimit = d->float_conf.inputtilt_angle_limit; // Cast the angle limit to remove the decimals
+	if (d->float_conf.inputtilt_angle_limit - truncanglelimit > 0) { // If we have any decimals allow sticky tilt
+		float stickytilt_val1 = 3.0; // Value that defines where tilt will stick for both nose up and down. Can be made UI input later.
+		float stickytilt_val2 = 6.0; // Value of 0 or above max disables. Max value <=  d->float_conf.inputtilt_angle_limit. 
+		//Val1 is the default value and value 2 is the step up value that engages when you flick the throttle toward sitcky tilt direction while engaged at val1 (but not to max)
 
+		// Conditions to start sticky tilt to provide a smooth start
+		if (((fabsf(d->inputtilt_interpolated) - fabsf(input_tiltback_target)) > 0) && // If the target is travelling toward or at the center
+		   (fabsf(d->inputtilt_interpolated) >  (d->stickytilt_val - d->inputtilt_step_size * 0.51)) && 
+		   (fabsf(d->inputtilt_interpolated) < (d->stickytilt_val + d->inputtilt_step_size * 0.51))) {
+		   //If we are close to our sticky tilt value (the range,+/-51% step size, is so you don't over step the sticky value.)
+			d->stickytilton = true;
+		}
+
+		//Apply sticky tilt. Check for exit condition and conditon to swap sticky values
+		if (d->stickytilton) { 
+			//Apply sticky tilt value and check for exit condition
+			if ((SIGN(d->inputtilt_interpolated) == SIGN(input_tiltback_target)) || (d->throttle_val == 0)) { // If the throttle is at zero or pushed to the direction of the sticky tilt value. 
+				if (fabsf(d->inputtilt_interpolated) > fabsf(input_tiltback_target)) { // If sticky tilt value greater than throttle value keep at sticky value
+					input_tiltback_target = d->stickytilt_val * SIGN(d->inputtilt_interpolated); // apply our sticky tilt value
+				} //else we will apply the normal throttle value calculated at the beginning of apply_inputtilt()
+
+				// Monitor the maximum input interpolated value so we don't switch sticky values if we hit max value
+				if ((fabsf(d->throttle_val) - fabsf(d->last_throttle_val) > .001) || // If the throttle is travelling away from center
+				   (fabsf(d->throttle_val)  > 0.95)) {					// Or close to max
+					d->stickytilt_maxval = fmaxf(fabsf(d->inputtilt_interpolated), d->stickytilt_maxval); // Monitor the maximum throttle value
+				}
+				// Check for conditions to swap sticky tilt values and apply
+				if (d->throttle_val == 0) { // The throttle is at the center
+					if ((fabsf(d->stickytilt_maxval) < .95 * d->float_conf.inputtilt_angle_limit) && //Check that we have not hit max throttle indicating a quick throttle action
+					(fabsf(d->stickytilt_maxval) > 0.05)) { // And a throttle action just happened
+						d->stickytilt_val = ((d->stickytilt_val == stickytilt_val1) ? stickytilt_val2 : stickytilt_val1); //switch sticky tilt values from 1 to 2
+					}	
+					d->stickytilt_maxval = 0; // Reset
+				}
+			} else { // release target to outside sticky tilt value range, defined above, when throttle pushed in opposite direction
+				d->stickytilton = false;
+				input_tiltback_target = (d->inputtilt_interpolated - SIGN(d->inputtilt_interpolated) * d->inputtilt_step_size); 
+				// uses d->inputtilt_interpolated instead of sticky value to keep transition smooth going continuous throttle up to throttle down
+			}
+		} else if ((fabsf(d->inputtilt_interpolated) >  d->inputtilt_step_size * -0.51) && 
+		   (fabsf(d->inputtilt_interpolated) < d->inputtilt_step_size * 0.51)) { 
+		   // wait for setpoint to reach or pass through zero to prevent sticking to the lower value releasing from the higher value
+			d->stickytilt_val = stickytilt_val1; 	// Reset sticky tilt value to val1 when sticky tilt is off
+		}
+		d->last_throttle_val = d->throttle_val;
+	}
+	//Sticky Tilt Input End
+	
 	float input_tiltback_target_diff = input_tiltback_target - d->inputtilt_interpolated;
 
 	if (d->float_conf.inputtilt_smoothing_factor > 0) { // Smoothen changes in tilt angle by ramping the step size
@@ -1145,7 +1586,6 @@ static void apply_inputtilt(data *d){ // Input Tiltback
 		d->inputtilt_interpolated += d->inputtilt_step_size * SIGN(input_tiltback_target_diff);
 	}
 	}
-
 	d->setpoint += d->inputtilt_interpolated;
 }
 
@@ -1573,6 +2013,335 @@ static void set_current(data *d, float current){
 	VESC_IF->mc_set_current(current);
 }
 
+static void set_dutycycle(data *d, float dutycycle){
+	// Limit duty output to configured max output
+	if (dutycycle >  VESC_IF->get_cfg_float(CFG_PARAM_l_max_duty)) {
+		dutycycle = VESC_IF->get_cfg_float(CFG_PARAM_l_max_duty);
+	} else if(dutycycle < 0 && dutycycle < (-1) * VESC_IF->get_cfg_float(CFG_PARAM_l_max_duty)) {
+		dutycycle = (-1) *  VESC_IF->get_cfg_float(CFG_PARAM_l_max_duty);
+	}
+	
+	// Reset the timeout
+	VESC_IF->timeout_reset();
+	// Set the current delay
+	VESC_IF->mc_set_current_off_delay(d->motor_timeout_seconds);
+	// Set Duty
+	//VESC_IF->mc_set_duty(dutycycle); 
+	VESC_IF->mc_set_duty_noramp(dutycycle);
+}
+
+static void check_surge(data *d, float new_pid_value){
+	//Start Surge Code
+	d->surge_period = 0.75; 		//.75	//Period between each surge, in seconds. Prevents runaway and instability. 
+	d->surge_cycle = 0.30; 			//.30	//Length of surge, in seconds
+	d->surge_startanglespeed = 50; //fmaxf(10, (float)d->float_conf.turntilt_start_erpm/10); 	//Nose speed that can initiate a surge
+	d->surge_difflimit = 3; //fmaxf(0.1, d->float_conf.turntilt_speed);				//Pitch required at start angle speed to initiate surge
+	d->surge_currentmargin = 1.3; //fmaxf(0.5, (float)d->float_conf.turntilt_erpm_boost/100);	//Higher current margin ends surge later
+
+	//Counter for high nose angle speed
+	if (d->differential * SIGN(d->erpm) > d->surge_startanglespeed / d->float_conf.hertz){
+		d->surge_diffcount += d->differential * SIGN(d->erpm);	// Add until diff limit. 
+	} else if (d->differential * SIGN(d->erpm) < 0) { 	//Pitch is travelling back to center
+		d->surge_diffcount = 0;				// reset
+	}
+
+	//Initialize Surge Cycle
+	if ((d->surge_diffcount >= d->surge_difflimit) && 		//Nose dip condition 
+	     (SIGN(d->erpm) * d->proportional - d->surge_difflimit > 0) &&	//Minimum angle for acceleration
+	     (!d->braking) && 						//Not braking
+	     (d->current_time - d->surge_timer > d->surge_period) &&	//Not during an active surge period
+	     (d->state != RUNNING_WHEELSLIP) &&				//Not during traction control
+	     (d->setpointAdjustmentType != CENTERING)) { 		//Not during startup
+		d->surge_timer = d->current_time; 			//Reset surge timer
+		d->surge = true; 					//Indicates we are in the surge cycle of the surge period
+		d->debug5 = 0;
+	}
+
+	//Conditions to stop surge and increment the duty cycle
+	if (d->surge){	
+		d->duty_cycle = SIGN(d->erpm); 					// Max duty during surge cycle	
+		d->surge_diffcount = 0;						// Reset surge initialization counter
+		//Conditions that will cause surge cycle to end
+		if ((d->current_time - d->surge_timer > d->surge_cycle) ||		//Outside the surge cycle portion of the surge period
+		 (d->state == RUNNING_WHEELSLIP) ||						//In traction control
+		 ((SIGN(d->erpm) * d->proportional - 0.05) < 0) ||			//The pitch is less than our minimum angle
+		 (new_pid_value <= d->motor_current / d->surge_currentmargin && SIGN(d->erpm) * d->differential < 0)) {
+		 //PID current demand has lowered below our surge current / margin and the nose is lifting (to prevent nuisance trips)
+			d->surge = false;
+			d->pid_value = d->motor_current;	//This allows a smooth transition to PID current control
+			if (d->current_time - d->surge_timer < d->surge_cycle) { 	//If we are still in the surge cycle
+				d->debug5 = d->current_time - d->surge_timer;	//Register how long the surge cycle lasted
+			}
+		}
+	}
+}
+
+static void apply_kalman_erpm(data *d){
+	// Apply a Kalman filter to d->erpm
+	float Q1 = .008; //.01 //.005 //0.022;			//the noise in the system
+	float R1 = 1; //0.617;					//the noise in the system
+	float K1;
+	float P1;
+	float P_temp1;
+	float x_temp_est1;
+	float x_est1;
+	float z_measured1; //the 'noisy' value we measured	
+	x_temp_est1 = d->x_est_last3; 			//do a prediction
+	P_temp1 = d->P_last3 + Q1;
+	K1 = P_temp1 * (1.0/(P_temp1 + R1));		//calculate the Kalman gain
+	z_measured1 = d->erpm;					//measure
+	x_est1 = x_temp_est1 + K1 * (z_measured1 - x_temp_est1); 	//correct
+	P1 = (1- K1) * P_temp1;
+	d->P_last3 = P1;			//update our last's
+	d->x_est_last3 = x_est1;		//update our last's
+	
+	//Apply a filter for acceleration
+	float Q2 = .0001; //.1 //0.022;			//the noise in the system
+	float R2 = 1; //0.617;	//the noise in the system
+	float K2;
+	float P2;
+	float P_temp2;
+	float x_temp_est2;
+	float x_est2;
+	float z_measured2; //the 'noisy' value we measured	
+	x_temp_est2 = d->x_est_last4; 			//do a prediction
+	P_temp2 = d->P_last4 + Q2;
+	K2 = P_temp2 * (1.0/(P_temp2 + R2));		//calculate the Kalman gain
+	z_measured2 = d->erpm - d->last_erpm;		//measure
+	x_est2 = x_temp_est2 + K2 * (z_measured2 - x_temp_est2); 	//correct
+	P2 = (1- K2) * P_temp2;
+	d->P_last4 = P2;			//update our last's
+	d->x_est_last4 = x_est2;		//update our last's			
+
+	d->erpm_smooth = x_est1 + x_est2 * 10;	//smoothed d->erpm, plus an estimate for the next step based on smoothed accel	
+}
+
+static void check_traction(data *d){
+	d->wheelslip_margin = 6; //d->float_conf.turntilt_speed; 	// Acceleration difference that indicates the wheel is in traction
+	d->wheelslip_accelstart = d->float_conf.turntilt_start_angle*10; 		// Acceleration that starts wheelslip
+	d->wheelslip_accelend = 5; //d->float_conf.turntilt_angle_limit; 			// Acceleration that indicates the initial wheelslip condition has ended
+	d->wheelslip_currentstart = 10;							// Lowest current that can cause a wheel slip
+	apply_kalman_erpm(d);
+	//float erpm_current = d->accelavg1 * (ERPM_ARRAY_SIZE1) + d->erpmavg1; 	// Estimate the current erpm 
+	float wheelslip_erpmfactor;
+	float scale_sign = -1;
+	// Use erpm factor to scale start accel so lower erpm requires more accel to start wheel slip. Has no effect above scaleerpm
+	if (SIGN(d->proportional) == SIGN(d->erpm)) { //scale vales for acceleration
+		d->wheelslip_scaleaccel = 5;
+		d->wheelslip_scaleerpm = 2000;
+		scale_sign = 1;
+	} else { //scale values for braking
+		d->wheelslip_scaleaccel = 10;
+		d->wheelslip_scaleerpm = 3000;
+	}
+	wheelslip_erpmfactor = d->wheelslip_scaleaccel - fminf(d->wheelslip_scaleaccel - 1, (d->wheelslip_scaleaccel -1) * fabsf (d->erpm_smooth / d->wheelslip_scaleerpm));
+
+	int last_accelidx1 = d->accelidx1 - 1; // Identify the last cycles accel
+	if (d->accelidx1 == 0) {
+		last_accelidx1 = ACCEL_ARRAY_SIZE1 - 1;
+	}
+	
+	int last_erpmidx = d->erpmidx1 + 1; // Identify ERPM from array size cycles ago
+	if (d->erpmidx1 > ERPM_ARRAY_SIZE1 - 1) {
+		last_erpmidx = 0;
+	}
+	
+	// Conditons to end traction control
+	if (d->state == RUNNING_WHEELSLIP) {
+		if (d->current_time - d->wheelslip_droptimeroff < 0.5) {		// Drop has ended recently
+			d->state = RUNNING;
+			d->wheelslip_timeroff = d->current_time;
+			d->debug4 = 6666;
+			d->debug8 = d->accelavg1;
+		} else	if (d->current_time - d->wheelslip_timeron > .5) {		// Time out at 500ms
+			d->state = RUNNING;
+			d->wheelslip_timeroff = d->current_time;
+			d->debug4 = 4444;
+			d->debug8 = d->accelavg1;
+		} else {
+			//This section determines if the wheel is acted on by outside forces by detecting acceleration direction change
+			if (d->wheelslip_highaccelon2) { 
+				if (SIGN(d->wheelslip_accelstartval) != SIGN(d->accelhist1[d->accelidx1])) { 
+				// First we identify that the wheel has deccelerated due to traciton control, switching the sign
+					d->wheelslip_highaccelon2 = false;				
+					d->debug1 = d->current_time - d->wheelslip_timeron;
+				} else if (d->current_time - d->wheelslip_timeron > .18) {	// Time out at 150ms if wheel does not deccelerate
+					d->state = RUNNING;
+					d->wheelslip_timeroff = d->current_time;
+					d->debug4 = 3333;
+					d->debug8 = d->accelavg1;
+				}
+			} else if (SIGN(d->accelhist1[d->accelidx1])!= SIGN(d->accelhist1[last_accelidx1])) { 
+			// Next we check to see if accel direction changes again from outside forces 
+				d->state = RUNNING;
+				d->wheelslip_timeroff = d->current_time;
+				d->debug4 = d->accelhist1[last_accelidx1];
+				d->debug8 = d->accelhist1[d->accelidx1];	
+			}
+			//This section determines if the wheel is acted on by outside forces by detecting acceleration magnitude
+			if (d->state == RUNNING_WHEELSLIP) { // skip this if we are already out of wheelslip to preserve debug values
+				if (d->wheelslip_highaccelon1) {		
+					if (SIGN(d->wheelslip_accelstartval) * d->accelavg1 < d->wheelslip_accelend) {	
+					// First we identify that the wheel has deccelerated due to traciton control
+						d->wheelslip_highaccelon1 = false;
+						d->debug7 = d->current_time - d->wheelslip_timeron;
+					} else if (d->current_time - d->wheelslip_timeron > .2) {	// Time out at 200ms if wheel does not deccelerate
+						d->state = RUNNING;
+						d->wheelslip_timeroff = d->current_time;
+						d->debug4 = 1111;
+						d->debug8 = d->accelavg1;
+					}
+				} else if (fabsf(d->accelavg1) > d->wheelslip_margin) { 
+				// If accel increases by a value higher than margin, the wheel is acted on by outside forces so we presumably have traction again
+					d->state = RUNNING;
+					d->wheelslip_timeroff = d->current_time;
+					d->debug4 = 2222;
+					d->debug8 = d->accelavg1;		
+				}
+			}
+		}
+	}	
+	
+	// Initiate traction control
+	if (((SIGN(d->motor_current) * d->accelavg1 > d->wheelslip_accelstart * wheelslip_erpmfactor) || 	// The wheel has broken free indicated by abnormally high acceleration in the direction of motor current
+	   (SIGN(d->motor_current) * d->accelavg1 > d->wheelslip_accelstart &&					// Condition for braking wheelslip, do not include erpm scale factor
+	   SIGN(d->erpm_smooth) != SIGN(d->erpmhist1[last_erpmidx]) &&							// Confirm wheel changes direction recently
+	   d->erpmhist1[last_erpmidx]> 750)) &&										// Use minimum erpm to prevent nuisance trips	
+	   (d->state != RUNNING_WHEELSLIP) &&									// Not in traction control
+	   (fabsf(d->motor_current) > d->wheelslip_currentstart) &&						// Is there enough current to cause a wheelslip reaction
+	   (SIGN(d->motor_current) == SIGN(d->accelhist1[d->accelidx1])) &&					// a more precise condition than the first for current dirrention and erpm - last erpm
+	   (d->current_time - d->wheelslip_timeroff > .75)) {							// Did not recently wheel slip
+		d->state = RUNNING_WHEELSLIP;
+		d->wheelslip_accelstartval = d->accelavg1;
+		d->wheelslip_highaccelon1 = true; 	
+		d->wheelslip_highaccelon2 = true; 	
+		d->wheelslip_timeron = d->current_time;
+		d->debug6 = d->accelavg1;
+		d->debug3 = d->motor_current;
+		d->debug1 = 0;
+		d->debug2 = wheelslip_erpmfactor * SIGN(scale_sign);
+		d->debug4 = 0;
+		d->debug8 = 0;
+	}
+}
+
+static void check_drop(data *d){
+	d->last_accel_z = d->accel[2];
+	VESC_IF->imu_get_accel(d->accel);
+	float accel_z_reduction = cosf(DEG2RAD_f(d->roll_angle)) * cosf(DEG2RAD_f(d->pitch_angle));		// Accel z is naturally reduced by the pitch and roll angles, so use geometry to compensate
+	if (d->applied_accel_z_reduction > accel_z_reduction) {							// Accel z acts slower than pitch and roll so we need to delay accel z reduction as necessary
+		d->applied_accel_z_reduction = accel_z_reduction ;						// Roll or pitch are increasing. Do not delay
+	} else {
+		d->applied_accel_z_reduction = d->applied_accel_z_reduction * .999 + accel_z_reduction * .001;	// Roll or pitch decreasing. Delay to allow accel z to keep pace	
+	}
+	d->wheelslip_droplimit = 0.92;	// Value of accel z to initiate drop. A drop of about 6" / .1s produces about 0.9 accel y (normally 1)
+	if ((d->accel[2] < d->wheelslip_droplimit * d->applied_accel_z_reduction) && 	// Compare accel z to drop limit with reduction for pitch and roll.
+	    (d->last_accel_z >= d->accel[2]) &&  			// for fastest landing reaction check that we are still dropping
+	    (d->current_time - d->wheelslip_droptimeroff > 0.5)) {	// Don't re-enter drop state for duration 	
+		d->wheelslip_dropcount += 1;
+		if (d->wheelslip_dropcount > 5) {			// Counter used to reduce nuisance trips
+			d->wheelslip_drop = true;
+			if (d->current_time - d->wheelslip_droptimeron > 3) { // Set the on timer only if it is well past what is normal so it only sets once
+				d->wheelslip_droptimeron = d->current_time;
+			}
+		}
+	} else if (d->wheelslip_drop == true) {		// If any conditions are not met while in drop state, exit drop state
+		d->wheelslip_drop = false;
+		d->wheelslip_droptimeroff = d->current_time;
+		d->wheelslip_dropcount = 0;		// reset
+	} else {
+		d->wheelslip_drop = false;		// Out of drop state by default
+		d->wheelslip_dropcount = 0;		// reset
+	}
+}
+
+static void apply_turnboost(data *d, float new_pid_value){
+	float booster_current, booster_angle, booster_ramp;
+	if (SIGN(d->proportional) != SIGN(d->erpm)) {
+		booster_current = d->float_conf.brkbooster_current / 100; //Changed to percent. 
+		booster_angle = d->float_conf.brkbooster_angle;
+		booster_ramp = d->float_conf.brkbooster_ramp;
+		if (d->erpm < 750) { // If we want to actually stop drop the boost current
+			booster_current = 0;
+		}
+	} else {
+		booster_current = d->float_conf.booster_current / 100; //Changed to percent
+		booster_angle = d->float_conf.booster_angle;
+		booster_ramp = d->float_conf.booster_ramp;
+	} 				
+	if (d->abs_roll_angle > booster_angle) {
+		if (d->abs_roll_angle - booster_angle < booster_ramp) {
+			booster_current *= (d->abs_roll_angle - booster_angle) / booster_ramp;
+		}
+	} else {
+		booster_current = 0;
+	}
+	booster_current *= SIGN(d->erpm)*fabsf(new_pid_value); 
+
+	// Since boost current is a percent we can multiply it by new current demand to get boost current. Always act in direction of travel
+	d->applied_booster_current = 0.01 * booster_current + 0.99 * d->applied_booster_current; 	
+}
+
+static void apply_kalman_kp(data *d){
+	// Apply a broad Kalman filter to d->proportional
+	float Q1 = .0042; //.005 //0.022;			//the noise in the system
+	float R1 = .7; //0.617;					//the noise in the system
+	float K1;
+	float P1;
+	float P_temp1;
+	float x_temp_est1;
+	float x_est1;
+	float z_measured1; //the 'noisy' value we measured	
+	x_temp_est1 = d->x_est_last1; 			//do a prediction
+	P_temp1 = d->P_last1 + Q1;
+	K1 = P_temp1 * (1.0/(P_temp1 + R1));		//calculate the Kalman gain
+	z_measured1 = d->proportional;					//measure
+	x_est1 = x_temp_est1 + K1 * (z_measured1 - x_temp_est1); 	//correct
+	P1 = (1- K1) * P_temp1;
+	d->P_last1 = P1;			//update our last's
+	d->x_est_last1 = x_est1;		//update our last's
+	
+	//Apply a more precise filter for pitch velocity
+	float Q2 = .08; //.08 //.1 //0.022;			//the noise in the system
+	float R2 = 1; //0.617;	//the noise in the system
+	float K2;
+	float P2;
+	float P_temp2;
+	float x_temp_est2;
+	float x_est2;
+	float z_measured2; //the 'noisy' value we measured	
+	x_temp_est2 = d->x_est_last2; 			//do a prediction
+	P_temp2 = d->P_last2 + Q2;
+	K2 = P_temp2 * (1.0/(P_temp2 + R2));		//calculate the Kalman gain
+	z_measured2 = d->proportional - d->last_proportional;		//measure
+	x_est2 = x_temp_est2 + K2 * (z_measured2 - x_temp_est2); 	//correct
+	P2 = (1- K2) * P_temp2;
+	d->P_last2 = P2;			//update our last's
+	d->x_est_last2 = x_est2;		//update our last's			
+
+	d->prop_smooth = x_est1 + x_est2 * 0.9;	//smoothed d->proportional, plus an estimate for the next step based on smoothed pitch speed	
+}
+
+static float apply_kp_mod(data *d) {
+	float m;
+	float b;
+	float kp_mod;
+	float kp_min = 5;
+	float scale_angle_min = 0.1;
+	float scale_angle_max = d->float_conf.kp - 5*(int)(d->float_conf.kp / 5); //kp that ends in something other than 0 or 5 truncated and used for angle max
+	float kp_max = 5 * (int)(d->float_conf.kp / 5) + 15; // remove ending digits if not zero or 5 and add 15 to rescale
+	apply_kalman_kp(d); // Smooth d->proportional so that it does not cause feeback vibration
+	if (scale_angle_max > 0) { // If we have a scale angle, allow angle p scaling
+		m = (kp_max - kp_min) / (scale_angle_max - scale_angle_min); 	//calcs slope between points (scale angle min, min kp) and (scale angle max, max kp)
+		b = kp_max - m * scale_angle_max;				//calcs y-int between points (scale angle min, min kp) and (scale angle max, max kp)
+		kp_mod = fmaxf(kp_min, fminf(kp_max, m * fabsf(d->prop_smooth) + b)); // scale kp between min and max with the caluclated equation
+	} else {
+		kp_mod = d->float_conf.kp;
+	}
+	d->debug10 = kp_mod;
+	return kp_mod;
+}
+
 static void imu_ref_callback(float *acc, float *gyro, float *mag, float dt) {
 	UNUSED(mag);
 	data *d = (data*)ARG;
@@ -1694,16 +2463,28 @@ static void float_thd(void *arg) {
 		d->last_erpm = smooth_erpm;
 		////////////////////////// FW SUPPORT NEEDED FOR SMOOTH ERPM */
 
+		//d->erpmavg1 += (d->erpm - d->erpmhist1[d->erpmidx1] ) / ERPM_ARRAY_SIZE1;
+		d->erpmhist1[d->erpmidx1] = d->erpm_smooth;
+		d->erpmidx1++;
+ 		if (d->erpmidx1 == ERPM_ARRAY_SIZE1) {
+			d->erpmidx1 = 0;
+		}		
+		
 		float acceleration_raw = d->erpm - d->last_erpm;
-		d->last_erpm = d->erpm;
-
+		d->accelavg1 += (acceleration_raw - d->accelhist1[d->accelidx1]) / ACCEL_ARRAY_SIZE1;
+		d->accelhist1[d->accelidx1] = acceleration_raw;
+		d->accelidx1++;
+ 		if (d->accelidx1 == ACCEL_ARRAY_SIZE1) {
+			d->accelidx1 = 0;
+		}
+		
 		d->accelavg += (acceleration_raw - d->accelhist[d->accelidx]) / ACCEL_ARRAY_SIZE;
 		d->accelhist[d->accelidx] = acceleration_raw;
-		d->accelidx++;
-		if (d->accelidx == ACCEL_ARRAY_SIZE)
-			d->accelidx = 0;
-
 		d->acceleration = d->accelavg;
+		d->accelidx++;
+ 		if (d->accelidx == ACCEL_ARRAY_SIZE) {
+			d->accelidx = 0;
+		}
 		
 		// Turn Tilt:
 		d->yaw_angle = VESC_IF->ahrs_get_yaw(&d->m_att_ref) * 180.0f / M_PI;
@@ -1808,12 +2589,11 @@ static void float_thd(void *arg) {
 			if (d->float_conf.ki_limit > 0 && fabsf(d->integral * d->float_conf.ki) > d->float_conf.ki_limit) {
 				d->integral = d->float_conf.ki_limit / d->float_conf.ki * SIGN(d->integral);
 			}
-
-			d->pid_prop = d->float_conf.kp * d->proportional;
+			
+			d->pid_prop = apply_kp_mod(d) * d->proportional;
 			d->pid_integral = d->float_conf.ki * d->integral;
 			new_pid_value = d->pid_prop + d->pid_integral;
-
-			d->last_proportional = d->proportional;
+			d->differential = d->proportional - d->last_proportional;
 
 			// Start Rate PID and Booster portion a few cycles later, after the start clicks have been emitted
 			// this keeps the start smooth and predictable
@@ -1821,70 +2601,24 @@ static void float_thd(void *arg) {
 				// Rate P (Angle + Rate, rather than Angle-Rate Cascading)
 				float rate_prop = -d->gyro[1];
 				d->pid_mod = d->float_conf.kp2 * rate_prop;
-
-				// Apply Booster (Now based on True Pitch)
-				float true_proportional = (d->setpoint - d->braketilt_interpolated) - d->true_pitch_angle; // Braketilt excluded to allow for soft brakes that strengthen when near tail-drag
-				d->abs_proportional = fabsf(true_proportional);
-				bool boostbraking = SIGN(d->proportional) != SIGN(d->erpm);
-
-				float booster_current, booster_angle, booster_ramp;
-				if (boostbraking) {
-					booster_current = d->float_conf.brkbooster_current;
-					booster_angle = d->float_conf.brkbooster_angle;
-					booster_ramp = d->float_conf.brkbooster_ramp;
-				}
-				else {
-					booster_current = d->float_conf.booster_current;
-					booster_angle = d->float_conf.booster_angle;
-					booster_ramp = d->float_conf.booster_ramp;
-				}
-
-				// Make booster a bit stronger at higher speed (up to 2x stronger when braking)
-				const int boost_min_erpm = 3000;
-				if (d->abs_erpm > boost_min_erpm) {
-					float speedstiffness = fminf(1, (d->abs_erpm - boost_min_erpm) / 10000);
-					if (boostbraking) {
-						// use higher current at speed when braking
-						booster_current += booster_current * speedstiffness;
-					}
-					else {
-						// when accelerating, we reduce the booster start angle as we get faster
-						// strength remains unchanged
-						float angledivider = 1 + speedstiffness;
-						booster_angle /= angledivider;
-					}
-				}
-
-				if (d->abs_proportional > booster_angle) {
-					if (d->abs_proportional - booster_angle < booster_ramp) {
-						booster_current *= SIGN(true_proportional) *
-								((d->abs_proportional - booster_angle) / booster_ramp);
-					} else {
-						booster_current *= SIGN(true_proportional);
-					}
-				}
-				else {
-					booster_current = 0;
-				}
-
-				// No harsh changes in booster current (effective delay <= 100ms)
-				d->applied_booster_current = 0.01 * booster_current + 0.99 * d->applied_booster_current;
+				
+				// Apply Turn Boost
+				apply_turnboost(d, new_pid_value);
 				d->pid_mod += d->applied_booster_current;
 
 				if (d->softstart_pid_limit < d->mc_current_max) {
-					d->pid_mod = fminf(d->pid_mod, d->softstart_pid_limit);
+					d->pid_mod = fminf(fabs(d->pid_mod), d->softstart_pid_limit) * SIGN(d->pid_mod);
 					d->softstart_pid_limit += d->softstart_ramp_step_size;
 				}
 
 				new_pid_value += d->pid_mod;
-			}
-			else {
+			} else {
 				d->pid_mod = 0;
 			}
-
+			
 			// Current Limiting!
 			float current_limit;
-			if (d->braking) {
+			if (SIGN(d->proportional) != SIGN(d->erpm)) {
 				current_limit = d->mc_current_min * (1 + 0.6 * fabsf(d->torqueresponse_interpolated / 10));
 			}
 			else {
@@ -1909,23 +2643,27 @@ static void float_thd(void *arg) {
 				}
 			}
 			
-			if (d->traction_control) {
-				// freewheel while traction loss is detected
+			// Modifiers to PID control
+                        //check_drop(d);
+			//check_traction(d);
+			check_surge(d, new_pid_value);
+						
+			d->last_proportional = d->proportional; // Moved here so turn boost can use last prop
+			d->last_erpm = d->erpm; //moved here so last erpm can be used in traction control
+				
+			// PID value application
+			if (d->state == RUNNING_WHEELSLIP) { //Reduce acceleration if we are in traction control
 				d->pid_value = 0;
-			}
-			else {
-				// Brake Amp Rate Limiting
-				if (d->braking && (fabsf(d->pid_value - new_pid_value) > d->pid_brake_increment)) {
-					if (new_pid_value > d->pid_value) {
-						d->pid_value += d->pid_brake_increment;
-					}
-					else {
-						d->pid_value -= d->pid_brake_increment;
-					}
+			} else if (SIGN(d->erpm) * (d->pid_value - new_pid_value) > d->pid_brake_increment) { // Brake Amp Rate Limiting
+				if (new_pid_value > d->pid_value) {
+					d->pid_value += d->pid_brake_increment;
 				}
 				else {
-					d->pid_value = d->pid_value * 0.8 + new_pid_value * 0.2;
+					d->pid_value -= d->pid_brake_increment;
 				}
+			}
+			else {
+				d->pid_value = d->pid_value * 0.8 + new_pid_value * 0.2; // Normal application of PID current control
 			}
 
 			// Output to motor
@@ -1936,9 +2674,11 @@ static void float_thd(void *arg) {
 					set_current(d, d->pid_value - d->float_conf.startup_click_current);
 				else
 					set_current(d, d->pid_value + d->float_conf.startup_click_current);
-			}
-			else {
-				set_current(d, d->pid_value);
+			} else if (d->surge) { 	
+				set_dutycycle(d, d->duty_cycle); 		// Set the duty to surge
+			} else {
+				set_current(d, d->pid_value); 	// Set current as normal.
+				d->surge = false;		// Don't re-engage surge if we have left surge cycle until new surge period
 			}
 
 			break;
@@ -1958,6 +2698,46 @@ static void float_thd(void *arg) {
 				d->enable_upside_down = false;
 				d->is_upside_down = false;
 			}	
+#ifdef USE_SPESC_HW
+			// read setting
+			// d->idle_warning_time_out = get_idle_warning_timer(d->float_conf.idle_warning_time);
+			if ((d->current_time - d->disengage_timer) > d->idle_warning_time_out && d->idle_warning_time_out > 0)
+			{
+
+				if ((d->current_time - d->nag_timer) > 30)
+				{ // beep every 30 seconds
+					d->nag_timer = d->current_time;
+					if (d->idle_warning_time_out > 0)
+					{
+
+						float input_voltage = VESC_IF->mc_get_input_voltage_filtered();
+
+						if (input_voltage > d->idle_voltage)
+						{
+							// don't beep if the voltage keeps increasing (board is charging)
+							d->idle_voltage = input_voltage;
+						}
+						else
+						{
+							beep_alert(d, 2, 1); // 2 long beeps
+						}
+					}
+
+					if ((d->float_conf.lights_mode == FLOAT_LIGHT_FULL_ON))
+					{
+						if (!d->is_brake_light_off)
+							turn_brake_light_off(d);
+						if (!d->is_head_light_off)
+							turn_head_light_off(d);
+					}
+				}
+			}
+			else
+			{
+				d->nag_timer = d->current_time;
+				d->idle_voltage = 0;
+			}
+#else
 			if (d->current_time - d->disengage_timer > 1800) {	// alert user after 30 minutes
 				if (d->current_time - d->nag_timer > 60) {		// beep every 60 seconds
 					d->nag_timer = d->current_time;
@@ -1976,6 +2756,7 @@ static void float_thd(void *arg) {
 				d->idle_voltage = 0;
 			}
 
+#endif
 			if ((d->current_time - d->fault_angle_pitch_timer) > 1) {
 				// 1 second after disengaging - set startup tolerance back to normal (aka tighter)
 				d->startup_pitch_tolerance = d->float_conf.startup_pitch_tolerance;
@@ -2017,10 +2798,12 @@ static void float_thd(void *arg) {
 		default:;
 		}
 
+#ifdef USE_SPESC_HW
+		check_lights(d);
+#endif
 		// Debug outputs
-//		app_balance_sample_debug();
-//		app_balance_experiment();
-
+		//		app_balance_sample_debug();
+		//		app_balance_experiment();
 		// Delay between loops
 		VESC_IF->sleep_us((uint32_t)((d->loop_time_seconds - roundf(d->filtered_loop_overshoot)) * 1000000.0));
 	}
@@ -2150,37 +2933,42 @@ enum {
 } float_commands;
 
 static void send_realtime_data(data *d){
-	#define BUFSIZE 72
+	#define BUFSIZE 92
 	uint8_t send_buffer[BUFSIZE];
 	int32_t ind = 0;
 	send_buffer[ind++] = 101;//Magic Number
 	send_buffer[ind++] = FLOAT_COMMAND_GET_RTDATA;
 
 	// RT Data
-	buffer_append_float32_auto(send_buffer, d->pid_value, &ind);
+	buffer_append_float32_auto(send_buffer, VESC_IF->mc_get_input_voltage_filtered(), &ind);
+	buffer_append_float32_auto(send_buffer, d->erpm_smooth, &ind); //erpm current
+	buffer_append_float32_auto(send_buffer, d->prop_smooth, &ind); //smooth porportional	
 	buffer_append_float32_auto(send_buffer, d->pitch_angle, &ind);
 	buffer_append_float32_auto(send_buffer, d->roll_angle, &ind);
+	buffer_append_float32_auto(send_buffer, d->debug10, &ind); // scaled angle P
 
 	send_buffer[ind++] = (d->state & 0xF) + (d->setpointAdjustmentType << 4);
 	send_buffer[ind++] = d->switch_state;
 	buffer_append_float32_auto(send_buffer, d->adc1, &ind);
 	buffer_append_float32_auto(send_buffer, d->adc2, &ind);
 
-	// Setpoints
 	buffer_append_float32_auto(send_buffer, d->float_setpoint, &ind);
-	buffer_append_float32_auto(send_buffer, d->float_atr, &ind);
-	buffer_append_float32_auto(send_buffer, d->float_braketilt, &ind);
-	buffer_append_float32_auto(send_buffer, d->float_torquetilt, &ind);
-	buffer_append_float32_auto(send_buffer, d->float_turntilt, &ind);
 	buffer_append_float32_auto(send_buffer, d->float_inputtilt, &ind);
-
-	// DEBUG
-	buffer_append_float32_auto(send_buffer, d->true_pitch_angle, &ind);
-	buffer_append_float32_auto(send_buffer, d->atr_filtered_current, &ind);
-	buffer_append_float32_auto(send_buffer, d->float_acc_diff, &ind);
-	buffer_append_float32_auto(send_buffer, d->applied_booster_current, &ind);
-	buffer_append_float32_auto(send_buffer, d->motor_current, &ind);
 	buffer_append_float32_auto(send_buffer, d->throttle_val, &ind);
+	
+	// DEBUG
+	buffer_append_float32_auto(send_buffer, d->current_time - d->surge_timer , &ind); //Temporary debug. Time since last surge
+	buffer_append_float32_auto(send_buffer, d->debug5, &ind); //Temporary debug. Duration last surge cycle time
+	
+	buffer_append_float32_auto(send_buffer, d->current_time - d->wheelslip_timeron , &ind); //Temporary debug. Time since last wheelslip
+	buffer_append_float32_auto(send_buffer, d->wheelslip_timeroff - d->wheelslip_timeron , &ind); //Temporary debug. Duration last wheelslip
+	buffer_append_float32_auto(send_buffer, d->debug1, &ind); //Temporary debug. Time until start accel reversed
+	buffer_append_float32_auto(send_buffer, d->debug7, &ind); //Temporary debug. Time until start accel reduced	
+	buffer_append_float32_auto(send_buffer, d->debug2, &ind); //Temporary debug. wheelslip erpm factor
+	buffer_append_float32_auto(send_buffer, d->debug6, &ind); //Temporary debug. accel at wheelslip start
+	buffer_append_float32_auto(send_buffer, d->debug3, &ind); //Temporary debug. motor current at wheelslip start
+	buffer_append_float32_auto(send_buffer, d->debug4, &ind); //Temporary debug. Debug condition or last accel
+	buffer_append_float32_auto(send_buffer, d->debug8, &ind); //Temporary debug. accel at wheelslip end
 
 	if (ind > BUFSIZE) {
 		VESC_IF->printf("BUFSIZE too small...\n");
@@ -2610,13 +3398,14 @@ static void on_command_received(unsigned char *buffer, unsigned int len) {
 		}
 		return;
 	}
-	if (magicnr != 101) {
+	if (magicnr  > 101) {
 		if (!VESC_IF->app_is_output_disabled()) {
 			VESC_IF->printf("Float App: Wrong magic number %d\n", magicnr);
 		}
 		return;
 	}
-
+if (magicnr ==101)
+{
 	switch(command) {
 		case FLOAT_COMMAND_GET_INFO: {
 			int32_t ind = 0;
@@ -2708,6 +3497,146 @@ static void on_command_received(unsigned char *buffer, unsigned int len) {
 			}
 		}
 	}
+} 
+#ifdef USE_SPESC_HW
+	else if (magicnr == ESP32_COMMAND_ID)
+	{
+
+		switch (command)
+		{
+		case ESP_COMMAND_GET_READY:
+		{
+
+			int32_t ind = 0;
+			uint8_t send_buffer[50];
+			send_buffer[ind++] = ESP32_COMMAND_ID; // Magic Number
+			send_buffer[ind++] = (uint8_t)ESP_COMMAND_GET_READY;
+			send_buffer[ind++] = 0x01;
+			VESC_IF->send_app_data(send_buffer, ind);
+			return;
+		}
+		case ESP_COMMAND_ENGINE_SOUND_INFO:
+		{
+			/**
+			 * float pidOutput;
+			 * uint8_t swState;
+			 * float erpm;
+			 * float inputVoltage;
+			 * float motorCurrent;
+			 *  */
+			int32_t ind = 0;
+			uint8_t send_buffer[50];
+			send_buffer[ind++] = ESP32_COMMAND_ID;						 // Magic Number
+			send_buffer[ind++] = (uint8_t)ESP_COMMAND_ENGINE_SOUND_INFO; // FLOAT_COMMAND_ENGINE_SOUND_INFO
+
+			buffer_append_float32_auto(send_buffer, d->pid_value, &ind); // pid output
+			send_buffer[ind++] = (uint8_t)d->switch_state;
+			buffer_append_float32_auto(send_buffer, d->erpm, &ind);									 // erpm
+			buffer_append_float32_auto(send_buffer, VESC_IF->mc_get_input_voltage_filtered(), &ind); // input voltage
+			buffer_append_float32_auto(send_buffer, d->motor_current, &ind);						 // motor current
+
+			VESC_IF->send_app_data(send_buffer, ind);
+			return;
+		}
+		case ESP_COMMAND_GET_ADV_INFO:
+		{ /**
+		*
+		   uint8_t lights_mode;
+		   uint8_t idle_warning_time;
+		   uint16_t engine_sound_volume;
+		   uint8_t over_speed_warning;
+		   flaot battery level 0-1
+		   uint8_t engine_sampling
+		*/
+			int32_t ind = 0;
+			uint8_t send_buffer[50];
+			send_buffer[ind++] = ESP32_COMMAND_ID; // Magic Number
+			send_buffer[ind++] = (uint8_t)ESP_COMMAND_GET_ADV_INFO;
+			send_buffer[ind++] = (uint8_t)d->float_conf.lights_mode;							// light mode
+			send_buffer[ind++] = (uint8_t)d->float_conf.idle_warning_time;						// idld time
+			buffer_append_uint16(send_buffer, d->float_conf.engine_sound_volume, &ind);			// sound volume
+			send_buffer[ind++] = d->float_conf.over_speed_warning;								// over speed alert
+			buffer_append_float32_auto(send_buffer, VESC_IF->mc_get_battery_level(NULL), &ind); // battery level
+			send_buffer[ind++] = d->float_conf.low_battery_warning_level;						// Battery low warning level
+			send_buffer[ind++] = d->float_conf.engine_sampling_source;
+			VESC_IF->send_app_data(send_buffer, ind);
+			return;
+		}
+
+		case ESP_COMMAND_SOUND_GET:
+		{
+			int32_t ind = 0;
+			uint8_t send_buffer[10];
+			send_buffer[ind++] = ESP32_COMMAND_ID;				 // magic nr.
+			send_buffer[ind++] = (uint8_t)ESP_COMMAND_SOUND_GET; // command ID
+			send_buffer[ind++] = d->sound_triggered;
+
+			VESC_IF->send_app_data(send_buffer, ind);
+			// clear
+			d->sound_triggered = 0;
+			return;
+		}
+		case ESP_COMMAND_SOUND_SET: // set command is from vesc tool (button)
+		{
+			uint8_t option_val = 0;
+			if (len == 3)
+			{
+				option_val = buffer[len - 1];
+			}
+			else
+			{
+				if (!VESC_IF->app_is_output_disabled())
+				{
+					VESC_IF->printf("ESP: Missing Args\n");
+					return;
+				}
+			}
+			d->sound_triggered = 0;
+			// check bit and set bit
+			if (CHECK_BIT(option_val, SOUND_HORN_TRIGGERED))
+				d->sound_triggered = option_val;
+			else if (CHECK_BIT(option_val, SOUND_EXCUSE_ME_TRIGGERED))
+				d->sound_triggered = option_val;
+			else if (CHECK_BIT(option_val, SOUND_POLICE_TRIGGERED))
+				d->sound_triggered = option_val;
+			else if (CHECK_BIT(option_val, SOUND_DANGER_TRIGGERED))
+				d->sound_triggered = option_val;
+			VESC_IF->printf("sound_triggered: %d\n", d->sound_triggered);
+
+			return;
+		}
+		case ESP_COMMAND_ENABLE_ITEM_INFO:
+		{
+
+			int32_t ind = 0;
+			uint8_t send_buffer[50];
+			uint8_t enable_item_data = 0;
+			send_buffer[ind++] = ESP32_COMMAND_ID;						// magic nr.
+			send_buffer[ind++] = (uint8_t)ESP_COMMAND_ENABLE_ITEM_INFO; // command ID
+			if (d->float_conf.ext_dcdc_enabled)
+				enable_item_data = enable_item_data | (1 << EXT_DCDC_ENABLE_MASK_BIT);
+			if (d->float_conf.engine_sound_enable)
+				enable_item_data = enable_item_data | (1 << ENGINE_SOUND_ENABLE_MASK_BIT);
+			if (d->float_conf.startup_safety_warning)
+				enable_item_data = enable_item_data | (1 << START_UP_WARNING_ENABLE_MASK_BIT);
+			send_buffer[ind++] = enable_item_data;
+			VESC_IF->send_app_data(send_buffer, ind);
+			return;
+		}
+
+		default:
+		{
+
+			if (!VESC_IF->app_is_output_disabled())
+			{
+				VESC_IF->printf("Float App: Unknown command received %d\n", command);
+			}
+			return;
+		}
+		}
+	}
+#endif
+
 }
 
 // Register get_debug as a lisp extension
@@ -2807,7 +3736,11 @@ INIT_FUN(lib_info *info) {
 	VESC_IF->conf_custom_add_config(get_cfg, set_cfg, get_cfg_xml);
 
 	configure(d);
-
+#ifdef USE_SPESC_HW
+	spesc_io_init();
+	reset_lights(d);
+	reset_sound_triggered(d);
+#endif
 	if ((d->float_conf.is_buzzer_enabled) || (d->float_conf.inputtilt_remote_type != INPUTTILT_PPM)) {
 		buzzer_init();
 	}
