@@ -1,4 +1,4 @@
-VESC_TOOL ?= vesc_tool
+VESC_TOOL ?= vesc_tool_6.02
 
 TARGET = float
 
@@ -7,6 +7,7 @@ SOURCES = float.c conf/buffer.c conf/confparser.c conf/confxml.c
 ADD_TO_CLEAN = conf/confxml.h conf/confxml.c
 
 VESC_C_LIB_PATH = ../../c_libs/
+USE_STLIB = yes
 include $(VESC_C_LIB_PATH)rules.mk
 
 float.c: conf/confparser.h conf/confxml.h

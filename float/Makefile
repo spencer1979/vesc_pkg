@@ -1,4 +1,4 @@
-VESC_TOOL ?= vesc_tool
+VESC_TOOL ?= vesc_tool_6.02
 
 all: float.vescpkg
 
@@ -14,6 +14,7 @@ README-pkg.md: README.md
 	cp README.md README-pkg.md
 	echo "- Version: ${VERSION}" >> README-pkg.md
 	echo "- Build Date: `date --rfc-3339=seconds`" >> README-pkg.md
+	echo "- Git Branch: `git rev-parse --abbrev-ref HEAD`" >> README-pkg.md
 	echo "- Git Commit: #`git rev-parse --short HEAD`" >> README-pkg.md
 
 ui.qml: ui.qml.in
