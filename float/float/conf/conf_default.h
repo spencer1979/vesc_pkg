@@ -25,12 +25,12 @@
 
 // Angle P (Braking)
 #ifndef APPCONF_FLOAT_KP_BRAKE
-#define APPCONF_FLOAT_KP_BRAKE 1
+#define APPCONF_FLOAT_KP_BRAKE 0.8
 #endif
 
 // Rate P (Braking)
 #ifndef APPCONF_FLOAT_KP2_BRAKE
-#define APPCONF_FLOAT_KP2_BRAKE 1
+#define APPCONF_FLOAT_KP2_BRAKE 0.8
 #endif
 
 // Loop Hertz
@@ -45,17 +45,17 @@
 
 // Roll Axis Fault Cutoff
 #ifndef APPCONF_FLOAT_FAULT_ROLL
-#define APPCONF_FLOAT_FAULT_ROLL 90
+#define APPCONF_FLOAT_FAULT_ROLL 53
 #endif
 
 // ADC1 Switch Voltage
 #ifndef APPCONF_FLOAT_FAULT_ADC1
-#define APPCONF_FLOAT_FAULT_ADC1 3
+#define APPCONF_FLOAT_FAULT_ADC1 1
 #endif
 
 // ADC2 Switch Voltage
 #ifndef APPCONF_FLOAT_FAULT_ADC2
-#define APPCONF_FLOAT_FAULT_ADC2 3
+#define APPCONF_FLOAT_FAULT_ADC2 1
 #endif
 
 // Beep on Sensor Fault
@@ -70,17 +70,17 @@
 
 // Roll Fault Delay
 #ifndef APPCONF_FLOAT_FAULT_DELAY_ROLL
-#define APPCONF_FLOAT_FAULT_DELAY_ROLL 1000
+#define APPCONF_FLOAT_FAULT_DELAY_ROLL 100
 #endif
 
 // Half Switch Fault Delay
 #ifndef APPCONF_FLOAT_FAULT_DELAY_SWITCH_HALF
-#define APPCONF_FLOAT_FAULT_DELAY_SWITCH_HALF 250
+#define APPCONF_FLOAT_FAULT_DELAY_SWITCH_HALF 400
 #endif
 
 // Full Switch Fault Delay
 #ifndef APPCONF_FLOAT_FAULT_DELAY_SWITCH_FULL
-#define APPCONF_FLOAT_FAULT_DELAY_SWITCH_FULL 250
+#define APPCONF_FLOAT_FAULT_DELAY_SWITCH_FULL 400
 #endif
 
 // ADC Half State Fault ERPM
@@ -90,12 +90,12 @@
 
 // Treat Both Sensors as One (Posi)
 #ifndef APPCONF_FLOAT_FAULT_IS_DUAL_SWITCH
-#define APPCONF_FLOAT_FAULT_IS_DUAL_SWITCH 0
+#define APPCONF_FLOAT_FAULT_IS_DUAL_SWITCH 1
 #endif
 
 // Disable Moving Faults
 #ifndef APPCONF_FLOAT_FAULT_MOVING_FAULT_DISABLED
-#define APPCONF_FLOAT_FAULT_MOVING_FAULT_DISABLED 0
+#define APPCONF_FLOAT_FAULT_MOVING_FAULT_DISABLED 1
 #endif
 
 // Enable Darkride
@@ -105,7 +105,7 @@
 
 // Enable Reverse Stop
 #ifndef APPCONF_FLOAT_FAULT_REVERSESTOP_ENABLED
-#define APPCONF_FLOAT_FAULT_REVERSESTOP_ENABLED 0
+#define APPCONF_FLOAT_FAULT_REVERSESTOP_ENABLED 1
 #endif
 
 // Angle
@@ -155,7 +155,7 @@
 
 // High Voltage Threshold
 #ifndef APPCONF_FLOAT_TILTBACK_HV
-#define APPCONF_FLOAT_TILTBACK_HV 64.5
+#define APPCONF_FLOAT_TILTBACK_HV 70
 #endif
 
 // Angle
@@ -170,7 +170,7 @@
 
 // Low Voltage Threshold
 #ifndef APPCONF_FLOAT_TILTBACK_LV
-#define APPCONF_FLOAT_TILTBACK_LV 45
+#define APPCONF_FLOAT_TILTBACK_LV 52
 #endif
 
 // Return To Level Speed
@@ -180,7 +180,7 @@
 
 // Constant Tiltback
 #ifndef APPCONF_FLOAT_TILTBACK_CONSTANT
-#define APPCONF_FLOAT_TILTBACK_CONSTANT 0
+#define APPCONF_FLOAT_TILTBACK_CONSTANT -1.5
 #endif
 
 // Constant Tiltback ERPM
@@ -285,7 +285,7 @@
 
 // Brake Current
 #ifndef APPCONF_FLOAT_BRAKE_CURRENT
-#define APPCONF_FLOAT_BRAKE_CURRENT 6
+#define APPCONF_FLOAT_BRAKE_CURRENT 0
 #endif
 
 // I Term Limit
@@ -486,6 +486,51 @@
 // Package Version
 #ifndef APPCONF_FLOAT_VERSION
 #define APPCONF_FLOAT_VERSION 1.4
+#endif
+
+// Headlight and Brake Light
+#ifndef APPCONF_FLOAT_LIGHT_MODE
+#define APPCONF_FLOAT_LIGHT_MODE 1
+#endif
+
+// Enable EXT DC-DC 
+#ifndef APPCONF_FLOAT_EXT_DCDC_ENABLED
+#define APPCONF_FLOAT_EXT_DCDC_ENABLED 1
+#endif
+
+// Idle Warning Timer
+#ifndef APPCONF_FLOAT_IDLE_WARINIG_TIME
+#define APPCONF_FLOAT_IDLE_WARINIG_TIME 6
+#endif
+
+// Enable Engine Sound
+#ifndef APPCONF_FLOAT_ENABLE_ENG_SOUND
+#define APPCONF_FLOAT_ENABLE_ENG_SOUND 1
+#endif
+
+// Engine Sampling Source
+#ifndef APPCONF_FLOAT_ENGINE_SAMPLING_SOURCE
+#define APPCONF_FLOAT_ENGINE_SAMPLING_SOURCE 0
+#endif
+
+// Engine Sound Volume
+#ifndef APPCONF_FLOAT_ENG_SOUND_VOLUME
+#define APPCONF_FLOAT_ENG_SOUND_VOLUME 200
+#endif
+
+// Safety Warning
+#ifndef APPCONF_FLOAT_ENG_SAFETY_WARNING
+#define APPCONF_FLOAT_ENG_SAFETY_WARNING 1
+#endif
+
+// Over Speed Warning
+#ifndef APPCONF_FLOAT_ENG_OVER_SPEED
+#define APPCONF_FLOAT_ENG_OVER_SPEED 20
+#endif
+
+// Low Battery Warning Level
+#ifndef APPCONF_FLOAT_LOW_BATTERY_WARNING_LEVEL
+#define APPCONF_FLOAT_LOW_BATTERY_WARNING_LEVEL 0
 #endif
 
 // CONF_DEFAULT_H_
