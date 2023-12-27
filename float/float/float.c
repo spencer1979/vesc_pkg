@@ -302,11 +302,18 @@ static void cmd_flywheel_toggle(data *d, unsigned char *cfg, int len);
 /**
  * BUZZER / BEEPER on Servo Pin
  */
-#if defined(USE_SPESC_HW) && (HW_VERSION_MAJOR >= 3) && (HW_VERSION_MINOR >= 2)
-#define BUZZER_GPIO GPIOB
-#define BUZZER_DCDC_PIN 9
-#define EXT_BUZZER_ON() VESC_IF->set_pad(BUZZER_GPIO, BUZZER_DCDC_PIN)
-#define EXT_BUZZER_OFF() VESC_IF->clear_pad(BUZZER_GPIO, BUZZER_DCDC_PIN)
+#if defined(USE_SPESC_HW) && (HW_VERSION_MAJOR >= 3) 
+
+ #if (HW_VERSION_MINOR == 3)
+    #define BUZZER_GPIO GPIOC
+    #define BUZZER_GPIO_PIN 13
+  #else
+    #define BUZZER_GPIO GPIOB
+    #define BUZZER_GPIO_PIN 9
+  #endif
+
+#define EXT_BUZZER_ON() VESC_IF->set_pad(BUZZER_GPIO, BUZZER_GPIO_PIN)
+#define EXT_BUZZER_OFF() VESC_IF->clear_pad(BUZZER_GPIO, BUZZER_GPIO_PIN)
 #else
 const VESC_PIN buzzer_pin = VESC_PIN_PPM;
 
@@ -316,8 +323,8 @@ const VESC_PIN buzzer_pin = VESC_PIN_PPM;
 
 void buzzer_init()
 {	
-#if defined(USE_SPESC_HW) && (HW_VERSION_MAJOR >= 3) && (HW_VERSION_MINOR >= 2)
-	VESC_IF->set_pad_mode(BUZZER_GPIO, BUZZER_DCDC_PIN, PAL_STM32_MODE_OUTPUT | PAL_STM32_OSPEED_HIGHEST | PAL_STM32_OTYPE_PUSHPULL);
+#if defined(USE_SPESC_HW) && (HW_VERSION_MAJOR >= 3) 
+	VESC_IF->set_pad_mode(BUZZER_GPIO, BUZZER_GPIO_PIN, PAL_STM32_MODE_OUTPUT | PAL_STM32_OSPEED_HIGHEST | PAL_STM32_OTYPE_PUSHPULL);
 #else
 	VESC_IF->io_set_mode(buzzer_pin, VESC_PIN_MODE_OUTPUT);
 #endif 
@@ -3499,7 +3506,7 @@ static void on_command_received(unsigned char *buffer, unsigned int len) {
 				send_buffer[ind++] = (uint8_t)ESP_COMMAND_ENGINE_SOUND_INFO; // FLOAT_COMMAND_ENGINE_SOUND_INFO
 
 				buffer_append_float32_auto(send_buffer, d->pid_value, &ind); // pid output
-				send_buffer[ind++] = (uint8_t)d->switch_state;
+				send_buffer[ind++] = (uint8_t)d->footpad_sensor.state;
 				buffer_append_float32_auto(send_buffer, d->erpm, &ind);									 // erpm
 				buffer_append_float32_auto(send_buffer, VESC_IF->mc_get_input_voltage_filtered(), &ind); // input voltage
 				buffer_append_float32_auto(send_buffer, d->motor_current, &ind);						 // motor current
