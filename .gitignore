@@ -1,5 +1,4 @@
 *.list
-*.vescpkg
 confxml.c
 confxml.h
 

@@ -15,6 +15,8 @@ README-pkg.md: README.md
 	echo "- Version: ${VERSION}" >> README-pkg.md
 	echo "- Build Date: `date --rfc-3339=seconds`" >> README-pkg.md
 	echo "- Git Commit: #`git rev-parse --short HEAD`" >> README-pkg.md
+	echo "- Git Repository: `git config --get remote.origin.url`" >> README-pkg.md
+	echo "- Git Branch: `git rev-parse --abbrev-ref HEAD`" >> README-pkg.md
 
 ui.qml: ui.qml.in
 	cat ui.qml.in | sed "s/{{VERSION}}/${VERSION}/g" > ui.qml

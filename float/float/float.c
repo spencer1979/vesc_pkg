@@ -51,8 +51,8 @@ HEADER
 #define USE_SPESC_HW
 // only for SPESC hardware 
 #ifdef USE_SPESC_HW
-#define HW_VERSION_MAJOR 2
-#define HW_VERSION_MINOR 0
+#define HW_VERSION_MAJOR 3
+#define HW_VERSION_MINOR 3
 #define ESP32_COMMAND_ID 102
 #define CHECK_BIT(var, pos) ((var) & (1 << (pos)))
 typedef enum
@@ -340,15 +340,15 @@ static void cmd_flywheel_toggle(data *d, unsigned char *cfg, int len);
 #if defined(USE_SPESC_HW) && (HW_VERSION_MAJOR >= 3) 
 
  #if (HW_VERSION_MINOR == 3)
-    #define BUZZER_GPIO GPIOC
-    #define BUZZER_GPIO_PIN 13
+    #define BEEPER_GPIO_PORT  GPIOC
+    #define BEEPER_GPIO_PIN 13
   #else
-    #define BUZZER_GPIO GPIOB
-    #define BUZZER_GPIO_PIN 9
+    #define BEEPER_GPIO_PORT GPIOB
+    #define BEEPER_GPIO_PIN 9
   #endif
 
-#define EXT_BUZZER_ON() VESC_IF->set_pad(BUZZER_GPIO, BUZZER_GPIO_PIN)
-#define EXT_BUZZER_OFF() VESC_IF->clear_pad(BUZZER_GPIO, BUZZER_GPIO_PIN)
+#define EXT_BEEPER_ON() VESC_IF->set_pad(BEEPER_GPIO_PORT, BEEPER_GPIO_PIN)
+#define EXT_BEEPER_OFF() VESC_IF->clear_pad(BEEPER_GPIO_PORT, BEEPER_GPIO_PIN)
 #else
 const VESC_PIN beeper_pin = VESC_PIN_PPM;
 
@@ -359,7 +359,7 @@ const VESC_PIN beeper_pin = VESC_PIN_PPM;
 void beeper_init()
 {
 #if defined(USE_SPESC_HW) && (HW_VERSION_MAJOR >= 3) 
-	VESC_IF->set_pad_mode(BUZZER_GPIO, BUZZER_GPIO_PIN, PAL_STM32_MODE_OUTPUT | PAL_STM32_OSPEED_HIGHEST | PAL_STM32_OTYPE_PUSHPULL);
+	VESC_IF->set_pad_mode(BEEPER_GPIO_PORT , BEEPER_GPIO_PIN, PAL_STM32_MODE_OUTPUT | PAL_STM32_OSPEED_HIGHEST | PAL_STM32_OTYPE_PUSHPULL);
 #else
 	VESC_IF->io_set_mode(beeper_pin, VESC_PIN_MODE_OUTPUT);
 #endif 
