@@ -47,7 +47,7 @@ p, li { white-space: pre-wrap; }
             <minDouble>0</minDouble>
             <showDisplay>0</showDisplay>
             <stepDouble>1</stepDouble>
-            <valDouble>20</valDouble>
+            <valDouble>23</valDouble>
             <vTxDoubleScale>10</vTxDoubleScale>
             <suffix></suffix>
             <vTx>7</vTx>
@@ -77,7 +77,7 @@ p, li { white-space: pre-wrap; }
             <minDouble>0</minDouble>
             <showDisplay>0</showDisplay>
             <stepDouble>0.1</stepDouble>
-            <valDouble>0.6</valDouble>
+            <valDouble>0.7</valDouble>
             <vTxDoubleScale>100</vTxDoubleScale>
             <suffix></suffix>
             <vTx>7</vTx>
@@ -156,7 +156,7 @@ p, li { white-space: pre-wrap; }
             <minDouble>0.2</minDouble>
             <showDisplay>0</showDisplay>
             <stepDouble>0.1</stepDouble>
-            <valDouble>1</valDouble>
+            <valDouble>0.9</valDouble>
             <vTxDoubleScale>10</vTxDoubleScale>
             <suffix>x</suffix>
             <vTx>7</vTx>
@@ -181,7 +181,7 @@ p, li { white-space: pre-wrap; }
             <minDouble>0</minDouble>
             <showDisplay>0</showDisplay>
             <stepDouble>0.1</stepDouble>
-            <valDouble>1</valDouble>
+            <valDouble>0.8</valDouble>
             <vTxDoubleScale>10</vTxDoubleScale>
             <suffix>x</suffix>
             <vTx>7</vTx>
@@ -249,7 +249,7 @@ p, li { white-space: pre-wrap; }
             <minDouble>-180</minDouble>
             <showDisplay>0</showDisplay>
             <stepDouble>1</stepDouble>
-            <valDouble>60</valDouble>
+            <valDouble>52</valDouble>
             <vTxDoubleScale>10</vTxDoubleScale>
             <suffix> °</suffix>
             <vTx>7</vTx>
@@ -273,7 +273,7 @@ p, li { white-space: pre-wrap; }
             <minDouble>0</minDouble>
             <showDisplay>1</showDisplay>
             <stepDouble>0.1</stepDouble>
-            <valDouble>2</valDouble>
+            <valDouble>1.5</valDouble>
             <vTxDoubleScale>1000</vTxDoubleScale>
             <suffix> V</suffix>
             <vTx>7</vTx>
@@ -297,7 +297,7 @@ p, li { white-space: pre-wrap; }
             <minDouble>0</minDouble>
             <showDisplay>1</showDisplay>
             <stepDouble>0.1</stepDouble>
-            <valDouble>2</valDouble>
+            <valDouble>1.5</valDouble>
             <vTxDoubleScale>1000</vTxDoubleScale>
             <suffix> V</suffix>
             <vTx>7</vTx>
@@ -330,7 +330,7 @@ p, li { white-space: pre-wrap; }
             <minInt>0</minInt>
             <showDisplay>0</showDisplay>
             <stepInt>50</stepInt>
-            <valInt>250</valInt>
+            <valInt>150</valInt>
             <suffix> ms</suffix>
             <vTx>3</vTx>
         </fault_delay_pitch>
@@ -350,7 +350,7 @@ p, li { white-space: pre-wrap; }
             <minInt>0</minInt>
             <showDisplay>0</showDisplay>
             <stepInt>50</stepInt>
-            <valInt>250</valInt>
+            <valInt>150</valInt>
             <suffix> ms</suffix>
             <vTx>3</vTx>
         </fault_delay_roll>
@@ -370,7 +370,7 @@ p, li { white-space: pre-wrap; }
             <minInt>0</minInt>
             <showDisplay>0</showDisplay>
             <stepInt>50</stepInt>
-            <valInt>100</valInt>
+            <valInt>250</valInt>
             <suffix> ms</suffix>
             <vTx>3</vTx>
         </fault_delay_switch_half>
@@ -390,7 +390,7 @@ p, li { white-space: pre-wrap; }
             <minInt>0</minInt>
             <showDisplay>0</showDisplay>
             <stepInt>50</stepInt>
-            <valInt>250</valInt>
+            <valInt>400</valInt>
             <suffix> ms</suffix>
             <vTx>3</vTx>
         </fault_delay_switch_full>
@@ -412,7 +412,7 @@ p, li { white-space: pre-wrap; }
             <minInt>0</minInt>
             <showDisplay>0</showDisplay>
             <stepInt>50</stepInt>
-            <valInt>200</valInt>
+            <valInt>300</valInt>
             <suffix> ERPM</suffix>
             <vTx>3</vTx>
         </fault_adc_half_erpm>
@@ -428,7 +428,7 @@ p, li { white-space: pre-wrap; }
 &lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;br /&gt;&lt;/p&gt;
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-weight:600; font-style:italic;&quot;&gt;*Note: For Advanced Riders only!&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</description>
             <cDefine>APPCONF_FLOAT_FAULT_IS_DUAL_SWITCH</cDefine>
-            <valInt>0</valInt>
+            <valInt>1</valInt>
         </fault_is_dual_switch>
         <fault_moving_fault_disabled>
             <longName>Disable Moving Faults</longName>
@@ -442,7 +442,7 @@ p, li { white-space: pre-wrap; }
 &lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;br /&gt;&lt;/p&gt;
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;*DISCLAIMER: Requires correct speed calibration and Tail Heavy Board!! The board &lt;/span&gt;&lt;span style=&quot; font-weight:600; font-style:italic;&quot;&gt;WILL&lt;/span&gt;&lt;span style=&quot; font-weight:600;&quot;&gt; ghost for sure if your normal speeds read as negative or if your board is nose heavy!!&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</description>
             <cDefine>APPCONF_FLOAT_FAULT_MOVING_FAULT_DISABLED</cDefine>
-            <valInt>0</valInt>
+            <valInt>1</valInt>
         </fault_moving_fault_disabled>
         <fault_darkride_enabled>
             <longName>Enable Darkride</longName>
@@ -472,7 +472,7 @@ p, li { white-space: pre-wrap; }
 &lt;p style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;br /&gt;&lt;/p&gt;
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;*DISCLAIMER: Requires correct speed calibration!! You &lt;/span&gt;&lt;span style=&quot; font-weight:600; font-style:italic;&quot;&gt;WON'T&lt;/span&gt;&lt;span style=&quot; font-weight:600;&quot;&gt; be able to go forward if your normal speeds are negative!!&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</description>
             <cDefine>APPCONF_FLOAT_FAULT_REVERSESTOP_ENABLED</cDefine>
-            <valInt>0</valInt>
+            <valInt>1</valInt>
         </fault_reversestop_enabled>
         <tiltback_duty_angle>
             <longName>Angle</longName>
@@ -556,7 +556,7 @@ p, li { white-space: pre-wrap; }
 &lt;p align=&quot;justify&quot; style=&quot;-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;br /&gt;&lt;/p&gt;
 &lt;p align=&quot;justify&quot; style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Warning: beeper may not be easily audible at high speeds!&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</description>
             <cDefine>APPCONF_FLOAT_IS_DUTYBEEP_ENABLED</cDefine>
-            <valInt>0</valInt>
+            <valInt>1</valInt>
         </is_dutybeep_enabled>
         <surge_angle>
             <longName>Surge Angle Increment</longName>
@@ -696,7 +696,7 @@ p, li { white-space: pre-wrap; }
             <minDouble>0</minDouble>
             <showDisplay>0</showDisplay>
             <stepDouble>0.5</stepDouble>
-            <valDouble>64.5</valDouble>
+            <valDouble>67.5</valDouble>
             <vTxDoubleScale>10</vTxDoubleScale>
             <suffix> V</suffix>
             <vTx>7</vTx>
@@ -768,7 +768,7 @@ p, li { white-space: pre-wrap; }
             <minDouble>0</minDouble>
             <showDisplay>0</showDisplay>
             <stepDouble>0.5</stepDouble>
-            <valDouble>45</valDouble>
+            <valDouble>52</valDouble>
             <vTxDoubleScale>10</vTxDoubleScale>
             <suffix> V</suffix>
             <vTx>7</vTx>
@@ -835,7 +835,7 @@ p, li { white-space: pre-wrap; }
             <minInt>200</minInt>
             <showDisplay>0</showDisplay>
             <stepInt>50</stepInt>
-            <valInt>500</valInt>
+            <valInt>300</valInt>
             <suffix> ERPM</suffix>
             <vTx>3</vTx>
         </tiltback_constant_erpm>
@@ -919,7 +919,7 @@ p, li { white-space: pre-wrap; }
             <minInt>0</minInt>
             <showDisplay>0</showDisplay>
             <stepInt>1</stepInt>
-            <valInt>0</valInt>
+            <valInt>1</valInt>
             <suffix>A</suffix>
             <vTx>1</vTx>
         </haptic_buzz_intensity>
@@ -941,7 +941,7 @@ p, li { white-space: pre-wrap; }
             <minInt>0</minInt>
             <showDisplay>0</showDisplay>
             <stepInt>1</stepInt>
-            <valInt>0</valInt>
+            <valInt>2</valInt>
             <suffix>A</suffix>
             <vTx>1</vTx>
         </haptic_buzz_min>
@@ -975,7 +975,7 @@ p, li { white-space: pre-wrap; }
 &lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Roboto'; ; font-weight:400; font-style:normal;&quot;&gt;
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;The type of haptic buzz to use when voltage exceeds the upper threshold.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</description>
             <cDefine>APPCONF_FLOAT_HAPTIC_BUZZ_HV</cDefine>
-            <valInt>0</valInt>
+            <valInt>1</valInt>
             <enumNames>None</enumNames>
             <enumNames>Audible1</enumNames>
             <enumNames>Audible2</enumNames>
@@ -995,7 +995,7 @@ p, li { white-space: pre-wrap; }
 &lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Roboto'; ; font-weight:400; font-style:normal;&quot;&gt;
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;The type of haptic buzz to use when voltage exceeds the lower threshold.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</description>
             <cDefine>APPCONF_FLOAT_HAPTIC_BUZZ_LV</cDefine>
-            <valInt>0</valInt>
+            <valInt>1</valInt>
             <enumNames>None</enumNames>
             <enumNames>Audible1</enumNames>
             <enumNames>Audible2</enumNames>
@@ -1015,7 +1015,7 @@ p, li { white-space: pre-wrap; }
 &lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Roboto'; ; font-weight:400; font-style:normal;&quot;&gt;
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;The type of haptic buzz to use when either controller or motor temperature gets within 3 degrees of the throttle start threshold (in Motor Config - General)&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</description>
             <cDefine>APPCONF_FLOAT_HAPTIC_BUZZ_TEMP</cDefine>
-            <valInt>0</valInt>
+            <valInt>3</valInt>
             <enumNames>None</enumNames>
             <enumNames>Audible1</enumNames>
             <enumNames>Audible2</enumNames>
@@ -1369,7 +1369,7 @@ p, li { white-space: pre-wrap; }
 &lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Roboto'; ; font-weight:400; font-style:normal;&quot;&gt;
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;Allow starting with a single sensor, while still allowing heel-lift dismounts. To avoid accidental re-engagement when heel-lift dismounting, this feature is disabled for 5 seconds from the last disengagement.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</description>
             <cDefine>APPCONF_SIMPLESTART_ENABLED</cDefine>
-            <valInt>0</valInt>
+            <valInt>1</valInt>
         </startup_simplestart_enabled>
         <startup_pushstart_enabled>
             <longName>Enable Push Start</longName>
@@ -1412,7 +1412,7 @@ p, li { white-space: pre-wrap; }
             <minDouble>0</minDouble>
             <showDisplay>0</showDisplay>
             <stepDouble>2</stepDouble>
-            <valDouble>6</valDouble>
+            <valDouble>0</valDouble>
             <vTxDoubleScale>100</vTxDoubleScale>
             <suffix> A</suffix>
             <vTx>7</vTx>
@@ -1743,7 +1743,7 @@ p, li { white-space: pre-wrap; }
             <minDouble>0</minDouble>
             <showDisplay>0</showDisplay>
             <stepDouble>0.1</stepDouble>
-            <valDouble>1</valDouble>
+            <valDouble>1.1</valDouble>
             <vTxDoubleScale>1000</vTxDoubleScale>
             <suffix></suffix>
             <vTx>7</vTx>
@@ -1770,7 +1770,7 @@ p, li { white-space: pre-wrap; }
             <minDouble>0</minDouble>
             <showDisplay>0</showDisplay>
             <stepDouble>0.1</stepDouble>
-            <valDouble>1</valDouble>
+            <valDouble>1.1</valDouble>
             <vTxDoubleScale>1000</vTxDoubleScale>
             <suffix></suffix>
             <vTx>7</vTx>
@@ -2008,7 +2008,7 @@ p, li { white-space: pre-wrap; }
             <minDouble>5</minDouble>
             <showDisplay>0</showDisplay>
             <stepDouble>1</stepDouble>
-            <valDouble>9</valDouble>
+            <valDouble>10</valDouble>
             <vTxDoubleScale>100</vTxDoubleScale>
             <suffix></suffix>
             <vTx>7</vTx>
@@ -2623,7 +2623,7 @@ p, li { white-space: pre-wrap; }
 &lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Roboto'; ; font-weight:400; font-style:normal;&quot;&gt;
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;Enable/disable beeper. Beeper is controlled by Servo/PPM. Active buzzer required, 3pin version recommended.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</description>
             <cDefine>APPCONF_FLOAT_IS_BEEPER_ENABLED</cDefine>
-            <valInt>0</valInt>
+            <valInt>1</valInt>
         </is_beeper_enabled>
         <float_disable>
             <longName>Disable Float Package</longName>
@@ -2719,7 +2719,7 @@ p, li { white-space: pre-wrap; }
 &lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Roboto'; ; font-weight:400; font-style:normal;&quot;&gt;
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;啟動模擬引擎聲,關閉時啟動藍芽喇叭.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</description>
             <cDefine>APPCONF_FLOAT_ENABLE_ENG_SOUND</cDefine>
-            <valInt>1</valInt>
+            <valInt>0</valInt>
         </engine_sound_enable>
         <engine_sampling_source>
             <longName>Engine Sampling Source</longName>

@@ -939,6 +939,7 @@ static void reset_vars(data *d) {
 	d->rc_current = 0;
 	#ifdef USE_SPESC_HW
 	reset_lights(d);
+	d->float_conf.ext_dcdc_enabled ? EXT_DCDC_ON() :EXT_DCDC_OFF() ;
 	#endif
 	// Haptic Buzz:
 	d->haptic_tone_in_progress = false;

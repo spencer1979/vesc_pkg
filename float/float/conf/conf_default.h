@@ -5,12 +5,12 @@
 
 // Angle P
 #ifndef APPCONF_FLOAT_KP
-#define APPCONF_FLOAT_KP 20
+#define APPCONF_FLOAT_KP 23
 #endif
 
 // Rate P
 #ifndef APPCONF_FLOAT_KP2
-#define APPCONF_FLOAT_KP2 0.6
+#define APPCONF_FLOAT_KP2 0.7
 #endif
 
 // Angle I
@@ -25,12 +25,12 @@
 
 // Angle P (Braking)
 #ifndef APPCONF_FLOAT_KP_BRAKE
-#define APPCONF_FLOAT_KP_BRAKE 1
+#define APPCONF_FLOAT_KP_BRAKE 0.9
 #endif
 
 // Rate P (Braking)
 #ifndef APPCONF_FLOAT_KP2_BRAKE
-#define APPCONF_FLOAT_KP2_BRAKE 1
+#define APPCONF_FLOAT_KP2_BRAKE 0.8
 #endif
 
 // Loop Hertz
@@ -45,17 +45,17 @@
 
 // Roll Axis Fault Cutoff
 #ifndef APPCONF_FLOAT_FAULT_ROLL
-#define APPCONF_FLOAT_FAULT_ROLL 60
+#define APPCONF_FLOAT_FAULT_ROLL 52
 #endif
 
 // ADC1 Switch Voltage
 #ifndef APPCONF_FLOAT_FAULT_ADC1
-#define APPCONF_FLOAT_FAULT_ADC1 2
+#define APPCONF_FLOAT_FAULT_ADC1 1.5
 #endif
 
 // ADC2 Switch Voltage
 #ifndef APPCONF_FLOAT_FAULT_ADC2
-#define APPCONF_FLOAT_FAULT_ADC2 2
+#define APPCONF_FLOAT_FAULT_ADC2 1.5
 #endif
 
 // Beep on Sensor Fault
@@ -65,37 +65,37 @@
 
 // Pitch Fault Delay
 #ifndef APPCONF_FLOAT_FAULT_DELAY_PITCH
-#define APPCONF_FLOAT_FAULT_DELAY_PITCH 250
+#define APPCONF_FLOAT_FAULT_DELAY_PITCH 150
 #endif
 
 // Roll Fault Delay
 #ifndef APPCONF_FLOAT_FAULT_DELAY_ROLL
-#define APPCONF_FLOAT_FAULT_DELAY_ROLL 250
+#define APPCONF_FLOAT_FAULT_DELAY_ROLL 150
 #endif
 
 // Half Switch Fault Delay
 #ifndef APPCONF_FLOAT_FAULT_DELAY_SWITCH_HALF
-#define APPCONF_FLOAT_FAULT_DELAY_SWITCH_HALF 100
+#define APPCONF_FLOAT_FAULT_DELAY_SWITCH_HALF 250
 #endif
 
 // Full Switch Fault Delay
 #ifndef APPCONF_FLOAT_FAULT_DELAY_SWITCH_FULL
-#define APPCONF_FLOAT_FAULT_DELAY_SWITCH_FULL 250
+#define APPCONF_FLOAT_FAULT_DELAY_SWITCH_FULL 400
 #endif
 
 // ADC Half State Fault ERPM
 #ifndef APPCONF_FLOAT_FAULT_ADC_HALF_ERPM
-#define APPCONF_FLOAT_FAULT_ADC_HALF_ERPM 200
+#define APPCONF_FLOAT_FAULT_ADC_HALF_ERPM 300
 #endif
 
 // Treat Both Sensors as One (Posi)
 #ifndef APPCONF_FLOAT_FAULT_IS_DUAL_SWITCH
-#define APPCONF_FLOAT_FAULT_IS_DUAL_SWITCH 0
+#define APPCONF_FLOAT_FAULT_IS_DUAL_SWITCH 1
 #endif
 
 // Disable Moving Faults
 #ifndef APPCONF_FLOAT_FAULT_MOVING_FAULT_DISABLED
-#define APPCONF_FLOAT_FAULT_MOVING_FAULT_DISABLED 0
+#define APPCONF_FLOAT_FAULT_MOVING_FAULT_DISABLED 1
 #endif
 
 // Enable Darkride
@@ -105,7 +105,7 @@
 
 // Enable Reverse Stop
 #ifndef APPCONF_FLOAT_FAULT_REVERSESTOP_ENABLED
-#define APPCONF_FLOAT_FAULT_REVERSESTOP_ENABLED 0
+#define APPCONF_FLOAT_FAULT_REVERSESTOP_ENABLED 1
 #endif
 
 // Angle
@@ -125,7 +125,7 @@
 
 // Beep on Duty Tiltback
 #ifndef APPCONF_FLOAT_IS_DUTYBEEP_ENABLED
-#define APPCONF_FLOAT_IS_DUTYBEEP_ENABLED 0
+#define APPCONF_FLOAT_IS_DUTYBEEP_ENABLED 1
 #endif
 
 // Surge Angle Increment
@@ -155,7 +155,7 @@
 
 // High Voltage Threshold
 #ifndef APPCONF_FLOAT_TILTBACK_HV
-#define APPCONF_FLOAT_TILTBACK_HV 64.5
+#define APPCONF_FLOAT_TILTBACK_HV 67.5
 #endif
 
 // Angle
@@ -170,7 +170,7 @@
 
 // Low Voltage Threshold
 #ifndef APPCONF_FLOAT_TILTBACK_LV
-#define APPCONF_FLOAT_TILTBACK_LV 45
+#define APPCONF_FLOAT_TILTBACK_LV 52
 #endif
 
 // Return To Level Speed
@@ -185,7 +185,7 @@
 
 // Constant Tiltback ERPM
 #ifndef APPCONF_FLOAT_TILTBACK_CONSTANT_ERPM
-#define APPCONF_FLOAT_TILTBACK_CONSTANT_ERPM 500
+#define APPCONF_FLOAT_TILTBACK_CONSTANT_ERPM 300
 #endif
 
 // Variable Tiltback Rate
@@ -205,12 +205,12 @@
 
 // Haptic Buzz Intensity
 #ifndef APPCONF_FLOAT_HAPTIC_BUZZ_INTENSITY
-#define APPCONF_FLOAT_HAPTIC_BUZZ_INTENSITY 0
+#define APPCONF_FLOAT_HAPTIC_BUZZ_INTENSITY 1
 #endif
 
 // Haptic Buzz Minimum Intensity
 #ifndef APPCONF_FLOAT_HAPTIC_BUZZ_MIN
-#define APPCONF_FLOAT_HAPTIC_BUZZ_MIN 0
+#define APPCONF_FLOAT_HAPTIC_BUZZ_MIN 2
 #endif
 
 // Haptic Buzz
@@ -220,17 +220,17 @@
 
 // Haptic Buzz
 #ifndef APPCONF_FLOAT_HAPTIC_BUZZ_HV
-#define APPCONF_FLOAT_HAPTIC_BUZZ_HV 0
+#define APPCONF_FLOAT_HAPTIC_BUZZ_HV 1
 #endif
 
 // Haptic Buzz
 #ifndef APPCONF_FLOAT_HAPTIC_BUZZ_LV
-#define APPCONF_FLOAT_HAPTIC_BUZZ_LV 0
+#define APPCONF_FLOAT_HAPTIC_BUZZ_LV 1
 #endif
 
 // Haptic Buzz - Temperature
 #ifndef APPCONF_FLOAT_HAPTIC_BUZZ_TEMP
-#define APPCONF_FLOAT_HAPTIC_BUZZ_TEMP 0
+#define APPCONF_FLOAT_HAPTIC_BUZZ_TEMP 3
 #endif
 
 // Haptic Buzz - Current Limits
@@ -310,7 +310,7 @@
 
 // Enable Simple Start
 #ifndef APPCONF_SIMPLESTART_ENABLED
-#define APPCONF_SIMPLESTART_ENABLED 0
+#define APPCONF_SIMPLESTART_ENABLED 1
 #endif
 
 // Enable Push Start
@@ -325,7 +325,7 @@
 
 // Brake Current
 #ifndef APPCONF_FLOAT_BRAKE_CURRENT
-#define APPCONF_FLOAT_BRAKE_CURRENT 6
+#define APPCONF_FLOAT_BRAKE_CURRENT 0
 #endif
 
 // I Term Limit
@@ -435,12 +435,12 @@
 
 // ATR Uphill Strength
 #ifndef APPCONF_FLOAT_ATR_UPHILL_STRENGTH
-#define APPCONF_FLOAT_ATR_UPHILL_STRENGTH 1
+#define APPCONF_FLOAT_ATR_UPHILL_STRENGTH 1.1
 #endif
 
 // ATR Downhill Strength
 #ifndef APPCONF_FLOAT_ATR_DOWNHILL_STRENGTH
-#define APPCONF_FLOAT_ATR_DOWNHILL_STRENGTH 1
+#define APPCONF_FLOAT_ATR_DOWNHILL_STRENGTH 1.1
 #endif
 
 // Threshold Angle Up
@@ -490,7 +490,7 @@
 
 // Amps to Acceleration Ratio
 #ifndef APPCONF_FLOAT_ATR_AMPS_ACCEL_RATIO
-#define APPCONF_FLOAT_ATR_AMPS_ACCEL_RATIO 9
+#define APPCONF_FLOAT_ATR_AMPS_ACCEL_RATIO 10
 #endif
 
 // Amps to Deceleration Ratio
@@ -595,7 +595,7 @@
 
 // Enable Beeper on Servo/PPM
 #ifndef APPCONF_FLOAT_IS_BEEPER_ENABLED
-#define APPCONF_FLOAT_IS_BEEPER_ENABLED 0
+#define APPCONF_FLOAT_IS_BEEPER_ENABLED 1
 #endif
 
 // Disable Float Package
@@ -625,7 +625,7 @@
 
 // Enable Engine Sound
 #ifndef APPCONF_FLOAT_ENABLE_ENG_SOUND
-#define APPCONF_FLOAT_ENABLE_ENG_SOUND 1
+#define APPCONF_FLOAT_ENABLE_ENG_SOUND 0
 #endif
 
 // Engine Sampling Source
