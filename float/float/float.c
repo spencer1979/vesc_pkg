@@ -51,8 +51,8 @@ HEADER
 #define USE_SPESC_HW
 // only for SPESC hardware 
 #ifdef USE_SPESC_HW
-#define HW_VERSION_MAJOR 3
-#define HW_VERSION_MINOR 3
+#define HW_VERSION_MAJOR 2
+#define HW_VERSION_MINOR 0
 #define ESP32_COMMAND_ID 102
 #define CHECK_BIT(var, pos) ((var) & (1 << (pos)))
 typedef enum
